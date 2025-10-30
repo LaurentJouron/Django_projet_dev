@@ -1,0 +1,166 @@
+{% load static %}
+{% load django_vite %}
+
+<aside x-data="sidebarComponent()"
+    class="z-20 fixed h-screen w-18 lg:w-60 border-r border-neutral-200  dark:border-neutral-800 lg:border-none transition-all duration-300 ease-in-out" :class="{ '!w-18': showDrawer }">
+
+    <nav class="relative h-full bg-white dark:bg-black z-10">
+        <div id="logo" class="pl-4.5 pt-5 mb-3 w-max">
+            <a href="">
+                <img class="hidden lg:block" :class="{ '!hidden': showDrawer }" src="{% vite_asset_url 'images/full_logo.png' %}" alt="">
+                <img class="block lg:hidden" :class="{ '!block': showDrawer }" src="{% vite_asset_url 'images/short_logo.png' %}" alt="">
+            </a>
+        </div>
+        <div class="px-4">
+            <button id="search" @click="showDrawer = !showDrawer; showSearch = true" id="search" class="w-full h-10 bg-neutral-100 dark:bg-neutral-800 rounded-full pl-2.5 flex items-center cursor-pointer">
+                <div class="size-5 flex-shrink-0">
+                    <svg viewBox="0 0 48 48">
+                        <path d="M21.83 7.5a14.34 14.34 0 1 1 0 28.68 14.34 14.34 0 0 1 0-28.68Zm0-4a18.33 18.33 0 1 0 11.48 32.64l8.9 8.9a1 1 0 0 0 1.42 0l1.4-1.41a1 1 0 0 0 0-1.42l-8.89-8.9A18.34 18.34 0 0 0 21.83 3.5Z"></path>
+                    </svg>
+                </div>
+                <span class="ml-2 text-sm text-neutral-400 dark:text-neutral-500 hidden lg:block" :class="{ '!hidden': showDrawer }">
+                    Recherche
+                </span>
+            </button>
+            
+            <div id="navigation">
+                {% include "includes/navigation.html" %}
+            </div>
+
+            <div class="py-4 border-neutral-200 dark:border-neutral-800 hidden lg:block" :class="{ '!hidden' : showDrawer }">
+                <p class="text-neutral-400  dark:text-neutral-500 text-xs whitespace-nowrap">&copy; 2025 ProjetDev</p>
+            </div>
+        </div>
+    </nav>
+
+    <side-drawer @click.outside="showDrawer = false; resetAll()" x-show="showDrawer" x-cloak class="fixed left-18 top-0 w-80 h-full border-l border-r border-neutral-200 dark:border-neutral-800 bg-white dark:bg-black"
+                x-transition:enter="transition duration-300 ease-out"
+                x-transition:enter-start="-translate-x-full opacity-0"
+                x-transition:enter-end="translate-x-0 opacity-100"
+                x-transition:leave="transition duration-200 ease-in"
+                x-transition:leave-start="translate-x-0 opacity-100"
+                x-transition:leave-end="-translate-x-full opacity-0"
+                >
+
+        <div x-show="showSearch" class="relative px-2 py-5">
+            <button id="close-button" @click="showDrawer = false; resetAll()" class="absolute right-4 top-6 size-7 bg-neutral-100 dark:bg-neutral-800 hover:bg-neutral-200 dark:hover:bg-neutral-700 rounded-full flex items-center justify-center cursor-pointer">
+                <div class="size-4">
+                    <svg viewBox="0 0 48 48">
+                        <path d="M38.7 12.12a1 1 0 0 0 0-1.41l-1.4-1.42a1 1 0 0 0-1.42 0L24 21.17 12.12 9.3a1 1 0 0 0-1.41 0l-1.42 1.42a1 1 0 0 0 0 1.41L21.17 24 9.3 35.88a1 1 0 0 0 0 1.41l1.42 1.42a1 1 0 0 0 1.41 0L24 26.83 35.88 38.7a1 1 0 0 0 1.41 0l1.42-1.42a1 1 0 0 0 0-1.41L26.83 24 38.7 12.12Z"></path>
+                    </svg>
+                </div>
+            </button>
+            <h2 class="pl-2 mb-7">Recherche</h2>
+            <div class="relative">
+                <input x-model="searchQuery" type="search" placeholder="Recherche" class="w-full h-10 bg-neutral-100 dark:bg-neutral-800 rounded-full pl-4 text-sm text-neutral-700 dark:text-white focus:outline focus:outline-neutral-300 dark:focus:outline-neutral-600" />
+                <button x-show="searchQuery" @click="searchQuery = ''" class="absolute right-4 top-3 text-black cursor-pointer">
+                    <div class="size-4 fill-neutral-400 dark:fill-neutral-500">
+                        <svg viewBox="0 0 48 48">
+                            <path d="M24 46C36.1503 46 46 36.1503 46 24C46 11.8497 36.1503 2 24 2C11.8497 2 2 11.8497 2 24C2 36.1503 11.8497 46 24 46ZM15.1466 30.7323L21.8788 24.0001L15.1466 17.2679C14.756 16.8774 14.756 16.2442 15.1466 15.8537L15.8537 15.1466C16.2442 14.756 16.8774 14.756 17.2679 15.1466L24.0001 21.8788L30.7323 15.1466C31.1229 14.756 31.756 14.756 32.1466 15.1466L32.8537 15.8537C33.2442 16.2442 33.2442 16.8774 32.8537 17.2679L26.1214 24.0001L32.8537 30.7323C33.2442 31.1229 33.2442 31.756 32.8537 32.1466L32.1466 32.8537C31.756 33.2442 31.1229 33.2442 30.7323 32.8537L24.0001 26.1214L17.2679 32.8537C16.8774 33.2442 16.2442 33.2442 15.8537 32.8537L15.1466 32.1466C14.756 31.756 14.756 31.1229 15.1466 30.7323Z"></path>
+                        </svg>
+                    </div>
+                </button>
+            </div>
+        </div>
+        <div x-show="showMore" class="relative px-2 py-5">
+            <button id="close-button" @click="showDrawer = false; resetAll()" class="absolute right-4 top-6 size-7 bg-neutral-100 dark:bg-neutral-800 hover:bg-neutral-200 dark:hover:bg-neutral-700 rounded-full flex items-center justify-center cursor-pointer">
+                <div class="size-4">
+                    <svg viewBox="0 0 48 48">
+                        <path d="M38.7 12.12a1 1 0 0 0 0-1.41l-1.4-1.42a1 1 0 0 0-1.42 0L24 21.17 12.12 9.3a1 1 0 0 0-1.41 0l-1.42 1.42a1 1 0 0 0 0 1.41L21.17 24 9.3 35.88a1 1 0 0 0 0 1.41l1.42 1.42a1 1 0 0 0 1.41 0L24 26.83 35.88 38.7a1 1 0 0 0 1.41 0l1.42-1.42a1 1 0 0 0 0-1.41L26.83 24 38.7 12.12Z"></path>
+                    </svg>
+                </div>
+            </button>
+            <h2 class="pl-2 mb-7">Plus</h2>
+            <ul class="flex flex-col gap-1">
+                <li>
+                    <button @click="resetAll(); showColorModes = true" class="button-rounded dark:hover:!bg-neutral-800">
+                        <span class="font-medium">
+                            Thèmes
+                        </span>
+                        <div class="size-4 fill-neutral-400">
+                            <svg viewBox="0 0 48 48">
+                                <path d="M28.74 24 15.08 10.33a1 1 0 0 1 0-1.41l1.84-1.84a1 1 0 0 1 1.41 0L34.54 23.3a1 1 0 0 1 0 1.42l-16.2 16.21a1 1 0 0 1-1.42 0l-1.84-1.84a1 1 0 0 1 0-1.41L28.74 24Z"></path>
+                            </svg>
+                        </div>
+                    </button>
+                </li>
+
+                <li>
+                    <button class="button-rounded dark:hover:!bg-neutral-800">
+                        <span class="font-medium">
+                            Paramètres
+                        </span>
+                    </button>
+                </li>
+
+                <li>
+                    <form method="post" action="{% url 'account_logout' %}">
+                        {% csrf_token %}
+
+                        <button type="submit" class="button-rounded dark:hover:!bg-neutral-800">
+                            <span class="font-medium">
+                                Se déconnecter
+                            </span>
+                        </button>
+                    </form>
+                </li>
+            </ul>
+        </div>
+
+        <div x-show="showColorModes" class="relative px-2 py-5">
+            <div class="flex items-center mb-7 pl-2">
+                <button @click="resetAll(); showMore = true" class="size-6 rounded-full bg-neutral-100 dark:bg-neutral-800 hover:bg-neutral-200 dark:hover:bg-neutral-700 flex items-center justify-center cursor-pointer">
+                    <div class="size-3 fill-neutral-700 dark:fill-white">
+                        <svg viewBox="0 0 48 48">
+                            <path d="m19.26 24 13.66-13.67a1 1 0 0 0 0-1.41l-1.84-1.84a1 1 0 0 0-1.41 0L13.46 23.3a1 1 0 0 0 0 1.42l16.2 16.21a1 1 0 0 0 1.42 0l1.84-1.84a1 1 0 0 0 0-1.41L19.26 24Z"></path>
+                        </svg>
+                    </div>
+                </button>
+                <h2 class="pl-2">Thèmes</h2>
+            </div>
+            <ul class="flex flex-col gap-1">
+                <li>
+                    <button @click="darkMode = true" class="button-rounded dark:hover:!bg-neutral-800">
+                        <span class="font-medium">
+                            Sombre
+                        </span>
+                        <div x-show="darkMode" class="size-3.5">
+                            <svg viewBox="0 0 48 48">
+                                <path d="M43 6.08c.7.45 1.06.67 1.25.98.16.27.23.59.2.9-.03.36-.26.72-.7 1.43L23.06 42.14a3.5 3.5 0 0 1-5.63.39L4.89 27.62c-.54-.64-.81-.96-.9-1.32a1.5 1.5 0 0 1 .09-.92c.14-.33.46-.6 1.1-1.14l1.69-1.42c.64-.54.96-.81 1.31-.9.3-.06.63-.04.92.09.34.14.6.46 1.15 1.1l9.46 11.25 18.11-28.7c.45-.72.68-1.07.99-1.26.27-.16.59-.23.9-.2.36.03.71.25 1.43.7L43 6.08Z"></path>
+                            </svg>
+                        </div>
+                    </button>
+                </li>
+                <li>
+                    <button @click="darkMode = false" class="button-rounded dark:hover:!bg-neutral-800">
+                        <span class="font-medium">
+                            Clair
+                        </span>
+                        <div x-show="!darkMode" class="size-3.5">
+                            <svg viewBox="0 0 48 48">
+                                <path d="M43 6.08c.7.45 1.06.67 1.25.98.16.27.23.59.2.9-.03.36-.26.72-.7 1.43L23.06 42.14a3.5 3.5 0 0 1-5.63.39L4.89 27.62c-.54-.64-.81-.96-.9-1.32a1.5 1.5 0 0 1 .09-.92c.14-.33.46-.6 1.1-1.14l1.69-1.42c.64-.54.96-.81 1.31-.9.3-.06.63-.04.92.09.34.14.6.46 1.15 1.1l9.46 11.25 18.11-28.7c.45-.72.68-1.07.99-1.26.27-.16.59-.23.9-.2.36.03.71.25 1.43.7L43 6.08Z"></path>
+                            </svg>
+                        </div>
+                    </button>
+                </li>
+            </ul>
+        </div>
+    </side-drawer>
+</aside>
+
+<script>
+    function sidebarComponent() {
+        return { 
+            showDrawer: false,
+            searchQuery: '',
+            showSearch: false,
+            showMore: false,
+            showColorModes: false,
+            resetAll() {
+                this.showSearch = false;
+                this.showMore = false;
+                this.showColorModes = false;
+            }
+        }
+    }
+</script>

@@ -1,0 +1,34 @@
+[[source]]
+url = "https://pypi.org/simple"
+verify_ssl = true
+name = "pypi"
+
+[packages]
+django = "*"
+django-htmx = "*"
+django-environ = "*"
+django-debug-toolbar = "*"
+django-browser-reload = "*"
+pillow = "*"
+psycopg2-binary = "*"
+django-extensions = "*"
+crispy-tailwind = "*"
+django-vite = "*"
+argon2-cffi = "*"
+django-cleanup = "*"
+django-admin-honeypot-updated-2021 = "*"
+whitenoise = "*"
+pytest-django = "*"
+pytest-cov = "*"
+flake8 = "*"
+flake8-html = "*"
+django-crispy-forms = "*"
+django-widget-tweaks = "*"
+django-allauth = "*"
+django-jazzmin = "*"
+django-resized = "*"
+
+[dev-packages]
+
+[requires]
+python_version = "3.12"

@@ -1,0 +1,32 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load django_vite %}
+
+{% block layout %}
+    <div {% block attrs %} id="account" {% endblock attrs %} class="min-h-[100dvh] grid grid-rows-[auto_1fr_auto]">
+
+        <header class="sticky top-0 z-10">
+            <div class="bg-white h-[60px] flex items-center px-2.5">
+                <a href="{% url 'users:index' %}">
+                    <img src="{% vite_asset_url 'images/full_logo.png' %}" alt="Logo">
+                </a>
+            </div>
+        </header>
+
+        <main class="w-[500px] mx-auto pt-16 px-6">
+            {% block content %}{% endblock content %}
+        </main>
+
+        <footer>
+
+            {% block terms %}{% endblock terms %}
+
+            {% block has_account %}{% endblock has_account %}
+
+            <div class="bg-black text-neutral-400 h-21 flex items-center justify-end px-36 text-sm">
+                <p>&copy; 2025 ProjetDev</p>
+            </div>
+        </footer>
+
+    </div>
+{% endblock %}

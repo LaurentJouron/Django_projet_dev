@@ -1,0 +1,185 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load django_vite %}
+
+{% block title %}Signup{% endblock title %}
+
+{% block content %}
+<div class="min-h-[100dvh] grid grid-rows-[auto_1fr_auto]">
+
+    <header class="sticky top-0 z-10">
+        <div class="bg-white h-[60px] flex items-center px-2.5">
+            <a href="">
+                <img src="{% vite_asset_url 'images/full_logo.png' %}" alt="Logo">
+            </a>
+        </div>
+    </header>
+    
+    <main>
+        <div class="max-w-[360px] mx-auto pt-16">
+            <h1 class="text-center pb-4">Inscription</h1>
+            <div class="mb-10">
+                <form x-data="{ selectDay: false, day: '',
+                        selectMonth: false, month: '',
+                        selectYear: false, year: '',
+                        email: '',
+                        password: '',
+                        code: '',
+                        username: '',
+                        get buttonActive() {
+                                return this.day && this.month && this.year && this.email && this.password && this.code && this.username
+                            }
+                        }">
+
+                    <p class="font-medium text-sm mb-1">
+                        Date de naissance
+                    </p>
+
+                    <div class="grid grid-cols-[1fr_1fr_1fr] gap-2 mb-1">
+                    
+                        <div @click.outside="selectDay = false" class="relative">
+                            <div @click="selectDay = !selectDay" class="bg-neutral-100 px-3 h-11 flex items-center justify-between rounded-sm cursor-pointer">
+                                <p x-text="day || 'Jour'" class="select-none" x-bind:class="day ? 'text-black' : 'text-neutral-400' ">Jour</p>
+                            <div x-bind:class="selectDay ? 'rotate-180' : 'rotate-0' " class="w-4 h-4 transition-transform duration-300">
+                                    <svg viewBox="0 0 48 48">
+                                        <path d="M25.5187 35.2284C24.7205 36.1596 23.2798 36.1596 22.4816 35.2284L8.83008 19.3016C7.71807 18.0042 8.63988 16 10.3486 16H37.6517C39.3604 16 40.2822 18.0042 39.1702 19.3016L25.5187 35.2284Z"></path>
+                                    </svg>
+                                </div>
+                            </div>
+                            <div x-show="selectDay" x-cloak class="absolute bg-white w-full top-12 left-0 rounded-sm drop-shadow-lg z-1">
+                                <ul>
+                                    <li @click="selectDay = false; day = 1" class="px-3 py-1.5 hover:bg-neutral-100 cursor-pointer">1</li>
+                                    <li @click="selectDay = false; day = 2" class="px-3 py-1.5 hover:bg-neutral-100 cursor-pointer">2</li>
+                                    <li @click="selectDay = false; day = 3" class="px-3 py-1.5 hover:bg-neutral-100 cursor-pointer">3</li>
+                                </ul>
+                            </div>
+                        </div>
+
+                        <div @click.outside="selectMonth = false" class="relative">
+                            <div @click="selectMonth = !selectMonth" class="bg-neutral-100 px-3 h-11 flex items-center justify-between rounded-sm cursor-pointer">
+                                <p x-text="month || 'Mois'" class="select-none" x-bind:class="month ? 'text-black' : 'text-neutral-400' ">Mois</p>
+                            <div x-bind:class="selectMonth ? 'rotate-180' : 'rotate-0' " class="w-4 h-4 transition-transform duration-300">
+                                    <svg viewBox="0 0 48 48">
+                                        <path d="M25.5187 35.2284C24.7205 36.1596 23.2798 36.1596 22.4816 35.2284L8.83008 19.3016C7.71807 18.0042 8.63988 16 10.3486 16H37.6517C39.3604 16 40.2822 18.0042 39.1702 19.3016L25.5187 35.2284Z"></path>
+                                    </svg>
+                                </div>
+                            </div>
+                            <div x-show="selectMonth" x-cloak class="absolute bg-white w-full top-12 left-0 rounded-sm drop-shadow-lg z-1">
+                                <ul>
+                                    <li @click="selectMonth = false; month = 'Janvier'" class="px-3 py-1.5 hover:bg-neutral-100 cursor-pointer">Janvier</li>
+                                    <li @click="selectMonth = false; month = 'Février'" class="px-3 py-1.5 hover:bg-neutral-100 cursor-pointer">Février</li>
+                                    <li @click="selectMonth = false; month = 'Mars'" class="px-3 py-1.5 hover:bg-neutral-100 cursor-pointer">Mars</li>
+                                </ul>
+                            </div>
+                        </div>
+
+                        <div @click.outside="selectYear = false" class="relative">
+                            <div @click="selectYear = !selectYear" class="bg-neutral-100 px-3 h-11 flex items-center justify-between rounded-sm cursor-pointer">
+                                <p x-text="year || 'Année'" class="select-none" x-bind:class="year ? 'text-black' : 'text-neutral-400' ">Année</p>
+                            <div x-bind:class="selectYear ? 'rotate-180' : 'rotate-0' " class="w-4 h-4 transition-transform duration-300">
+                                    <svg viewBox="0 0 48 48">
+                                        <path d="M25.5187 35.2284C24.7205 36.1596 23.2798 36.1596 22.4816 35.2284L8.83008 19.3016C7.71807 18.0042 8.63988 16 10.3486 16H37.6517C39.3604 16 40.2822 18.0042 39.1702 19.3016L25.5187 35.2284Z"></path>
+                                    </svg>
+                                </div>
+                            </div>
+                            <div x-show="selectYear" x-cloak class="absolute bg-white w-full top-12 left-0 rounded-sm drop-shadow-lg z-1">
+                                <ul>
+                                    <li @click="selectYear = false; year = 2000" class="px-3 py-1.5 hover:bg-neutral-100 cursor-pointer">2000</li>
+                                    <li @click="selectYear = false; year = 2001" class="px-3 py-1.5 hover:bg-neutral-100 cursor-pointer">2001</li>
+                                    <li @click="selectYear = false; year = 2002" class="px-3 py-1.5 hover:bg-neutral-100 cursor-pointer">2002</li>
+                                </ul>
+                            </div>
+                        </div>
+
+                    </div>
+
+                    <p class="text-neutral-400 text-sm mb-6">
+                        Ta date de naissance ne sera pas publique.
+                    </p>
+
+                    <p class="font-medium text-sm mb-1">
+                        Email
+                    </p>
+
+                    <div class="flex flex-col gap-2 mb-2">
+
+                        <!-- Cellule email -->
+                        <input x-model='email' name="email" type="email" placeholder="Adresse mail" class="input-field" value="">
+
+                        <!-- Cellule mot de passe -->
+                        <div x-data="{ password_show: false }" class="grid relative w-full">
+                            <input x-model="password" name="password" x-bind:type="password_show ? 'text' : 'password' " placeholder="Mot de passe" class="input-field" value="">
+                            <a @click="password_show = !password_show" class="h-5 w-5 absolute top-3 right-3.5 fill-neutral-500 cursor-pointer">
+                                <svg x-show="!password_show" viewBox="0 0 48 48">
+                                    <path d="M38.88 41.7a1 1 0 0 0 1.41 0l1.42-1.4a1 1 0 0 0 0-1.42l-3.86-3.86a24.57 24.57 0 0 0 6.27-9.69 1 1 0 0 0 0-.66C41 15.8 32.66 9 23 9c-3.27 0-6.35.73-9.12 2.05L9.12 6.29a1 1 0 0 0-1.41 0L6.29 7.71a1 1 0 0 0 0 1.41l32.59 32.59Zm-22-27.66A17.8 17.8 0 0 1 23 13c12.75 0 17 12 17 12s-1.38 3.9-4.93 7.25l-4.54-4.55A7.99 7.99 0 0 0 23 17c-.95 0-1.86.16-2.7.47l-3.43-3.43ZM1.87 24.67a24.64 24.64 0 0 1 5.8-9.23l2.77 2.78C7.25 21.46 6 25 6 25s4.25 12 17 12a18 18 0 0 0 5.42-.8l3.05 3.05A21.2 21.2 0 0 1 23 41c-9.83 0-17.93-6.63-21.13-15.67a1 1 0 0 1 0-.66Z"></path>
+                                    <path d="M15 25c0-.68.08-1.35.24-1.98l9.74 9.73A8.02 8.02 0 0 1 15 25Z"></path>
+                                </svg>
+                                <svg x-show="password_show" x-cloak viewBox="0 0 48 48" >
+                                    <path d="M41.4 23.71a.9.9 0 0 1 0 .58c-.63 1.92-2.2 4.89-4.82 7.51A17.35 17.35 0 0 1 24 37.11c-5.42 0-9.55-2.28-12.58-5.3a20.44 20.44 0 0 1-4.82-7.52.9.9 0 0 1 0-.58c.63-1.92 2.2-4.89 4.82-7.51A17.35 17.35 0 0 1 24 10.89c5.42 0 9.55 2.28 12.58 5.3a20.44 20.44 0 0 1 4.82 7.52ZM24 41c13.83 0 20.82-11.7 21.96-16.81a.85.85 0 0 0 0-.38C44.82 18.71 37.83 7 24 7S3.18 18.7 2.04 23.81a.85.85 0 0 0 0 .38C3.18 29.29 10.17 41 24 41Z"></path>
+                                    <path d="M24 27.21a3.21 3.21 0 1 1 0-6.42 3.21 3.21 0 0 1 0 6.42Zm0 4.29a7.5 7.5 0 1 0 0-15 7.5 7.5 0 0 0 0 15Z"></path>
+                                </svg>
+                            </a>
+                        </div>
+
+                        <!-- Code de validation -->
+                        <div class="flex">
+                            <input x-model="code" name="code" type="text" placeholder="Code à 6 chiffres" class="input-field !w-2/3 !rounded-none !rounded-l-sm" value="">
+                            <div class="input-field !w-1/3 text-center font-medium text-neutral-400 select-none cursor-not-allowed !rounded-none !rounded-r-sm">
+                                Valider
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Cellule nom d'usage -->
+                    <div class="mb-4 ">
+                        <p class="font-medium text-sm mb-1">Nom d'usage</p>
+                        <input x-model="username" name="username" type="text" placeholder="Nom d'usage" class="input-field" value="">
+                    </div>
+
+                    <!-- Interrupteur contenu tendance -->
+                    <div class="grid grid-cols-[auto_1fr] gap-2 mb-6">
+                        <input type="checkbox" class="size-5.5 mt-0.5 checked:accent-[#366BF5]">
+                        <p class="text-xs text-neutral-600 leading-4">
+                            Recevez du contenu tendance, des newsletters, des promotions, des recommandations et des mises à jour.
+                        </p>
+                    </div>
+
+                    <!-- Bouton d'inscrption -->
+                    <button x-bind:type="buttonActive ? 'submit' : 'button'" class="button" x-bind:class="{ 'button-active' : buttonActive }">S'inscrire</button>
+                </form>
+            </div>
+
+            <div class="flex justify-center">
+                <a href="{% url 'index:index' %}" class="flex items-center">
+                    <div class="w-3.5 h-3.5">
+                        <svg viewBox="0 0 48 48">
+                            <path d="M4.58579 22.5858L20.8787 6.29289C21.2692 5.90237 21.9024 5.90237 22.2929 6.29289L23.7071 7.70711C24.0976 8.09763 24.0976 8.7308 23.7071 9.12132L8.82843 24L23.7071 38.8787C24.0976 39.2692 24.0976 39.9024 23.7071 40.2929L22.2929 41.7071C21.9024 42.0976 21.2692 42.0976 20.8787 41.7071L4.58579 25.4142C3.80474 24.6332 3.80474 23.3668 4.58579 22.5858Z"></path>
+                        </svg>
+                    </div>
+                    <p class="font-medium text-sm">
+                        Retour
+                    </p>
+                </a>
+            </div>
+
+        </div>
+    </main>
+    
+    <footer>
+        <div class="max-w-sm mx-auto pt-8 pb-20 text-center text-neutral-400 text-xs">
+            <p>
+                En continuant, vous acceptez les <a href="" class="text-black hover:underline">conditions d’utilisation</a> de ProjetDev et confirmez avoir lu la <a href="" class="text-black hover:underline">politique de confidentialité</a> de ProjetDev.
+            </p>
+        </div>
+        <div class="text-center p-5 border-t border-neutral-300">
+            <p>
+                Vous avez déjà un compte ? <a href="{% url 'index:index' %}" class="text-[#366BF5] font-medium hover:underline">Se connecter</a>
+            </p>
+        </div>
+        <div class="bg-black text-neutral-400 h-21 flex items-center justify-end px-36 text-sm">
+            <p>&copy; 2025 ProjetDev</p>
+        </div>
+    </footer>
+
+</div>
+{% endblock %}

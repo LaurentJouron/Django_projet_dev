@@ -1,0 +1,10 @@
+{% extends 'layouts/main-layout.html' %}
+{% load static %}
+
+{% block title %}{{ profile_user.username }}{% endblock title %}
+
+{% block content %}
+
+    {% include "./partials/_profile.html" %}
+
+{% endblock %}

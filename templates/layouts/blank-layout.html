@@ -1,0 +1,9 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load django_vite %}
+
+{% block layout %}
+    <div class="min-h-[100dvh]">
+        {% block content %}{% endblock content %}
+    </div>
+{% endblock %}

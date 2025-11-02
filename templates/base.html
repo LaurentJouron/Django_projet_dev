@@ -4,7 +4,7 @@
 {% load django_htmx %}
 
 <!DOCTYPE html>
-<html lang="fr" x-data="{ darkMode : false }" :class="{ 'dark': darkMode }">
+<html lang="fr" x-data="{ darkMode : {{ user.darkmode|yesno:'true,false' }} }" :class="{ 'dark': darkMode }">
 <head>
     <meta charset="UTF-8">
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
@@ -46,7 +46,7 @@
 
     {% django_browser_reload_script %}
 </head>
-<body x-data="{ modalPage: false}" class="dark:bg-black dark:text-white dark:fill-white" hx-headers='{"x-csrftoken": "{{ csrftoken }}"}'>
+<body x-data="{ modalPage: false, modalBox: false }" class="dark:bg-black dark:text-white dark:fill-white" hx-headers='{"x-csrftoken": "{{ csrftoken }}"}'>
 
         
     {% include "./includes/modal.html" %}

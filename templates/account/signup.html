@@ -142,10 +142,21 @@
                     <!-- Code de validation -->
                     <verification-code class="flex">
                         <input x-model="code" name="code" type="text" placeholder="Code à 6 chiffres" class="input-field !w-2/3 !rounded-none !rounded-l-sm" value="">
-                        <div class="input-field !w-1/3 text-center font-medium text-neutral-400 select-none cursor-not-allowed !rounded-none !rounded-r-sm">
+                        <button type="button"
+                                hx-get="{% url 'users:verification_code' %}"
+                                hx-include="input[name='email']"
+                                hx-target="#code-message"
+                                hx-swap="innerHTML"
+                                class="input-field !w-1/3 text-center font-medium text-neutral-400 select-none !rounded-none !rounded-r-sm"
+                                x-bind:class="email ? 'cursor-pointer !bg-neutral-200 hover:!bg-neutral-300 text-neutral-500 : '!cursor-not-allowed'">
                             Valider
-                        </div>
+                        </button>
                     </verification-code>
+                    <div id="code-message" class="text-sm pb-3">
+                        {% if form.code.errors %}
+                            {{ form.code.errors }}
+                        {% endif %}
+                    </div>
                 </div>
 
                 <!-- Cellule nom d'usage -->

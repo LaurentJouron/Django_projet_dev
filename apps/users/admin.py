@@ -8,7 +8,17 @@ class CustomUserAdmin(UserAdmin):
     fieldsets = (
         (
             None,
-            {"fields": ("name", "image", "bio", "website", "birthday")},
+            {
+                "fields": (
+                    "name",
+                    "image",
+                    "bio",
+                    "website",
+                    "birthday",
+                    "notifications",
+                    "darkmode",
+                )
+            },
         ),
     ) + UserAdmin.fieldsets  # type: ignore
     list_display = ("username", "name", "email", "is_staff", "is_active")

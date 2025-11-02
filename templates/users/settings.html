@@ -1,0 +1,12 @@
+{% extends 'layouts/main-layout.html' %}
+{% load static %}
+
+{% block title %}Settings{% endblock title %}
+
+{% block content %}
+    <div class="ml-18 lg:ml-60 px-8 pt-16 flex justify-center">
+        <div class="bg-white text-black rounded-lg p-6 shadow-xl w-full max-w-2xl min-h-40 relative">
+            {% include "./partials/_settings.html" %}
+        </div>
+    </div>
+{% endblock %}

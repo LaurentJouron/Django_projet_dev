@@ -14,7 +14,7 @@ class CustomSignupForm(SignupForm):
         email = self.cleaned_data.get("email")
         cached_code = cache.get(f"verification_code_{email}")
         if not cached_code or cached_code != code:
-            self.add_error("code", "Invalid or expired verification code.")
+            self.add_error("code", "Code de vérification invalide ou expiré.")
 
     def save(self, request):
         user = super().save(request)
@@ -34,21 +34,24 @@ class ProfileForm(forms.ModelForm):
         fields = ["image", "username", "name", "bio", "website"]
         widgets = {
             "username": forms.TextInput(
-                attrs={"class": "input-field", "placeholder": "Username"}
+                attrs={
+                    "class": "input-field",
+                    "placeholder": "Nom d'utilisateur",
+                }
             ),
             "name": forms.TextInput(
-                attrs={"class": "input-field", "placeholder": "Name"}
+                attrs={"class": "input-field", "placeholder": "Nom"}
             ),
             "bio": forms.Textarea(
                 attrs={
                     "class": "input-field resize-none",
                     "rows": 2,
-                    "placeholder": "Bio",
+                    "placeholder": "Biographie",
                     "maxlength": "250",
                 }
             ),
             "website": forms.TextInput(
-                attrs={"class": "input-field", "placeholder": "Website"}
+                attrs={"class": "input-field", "placeholder": "Site web"}
             ),
         }
 
@@ -70,7 +73,7 @@ class EmailForm(forms.ModelForm):
             .filter(email=email)
             .exists()
         ):
-            raise forms.ValidationError("This email is already taken.")
+            raise forms.ValidationError("Cet email est déjà pris.")
         return email
 
 

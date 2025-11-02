@@ -86,11 +86,11 @@
                 </li>
 
                 <li>
-                    <button class="button-rounded dark:hover:!bg-neutral-800">
+                    <a href="{% url 'users:settings' %}" class="button-rounded dark:hover:!bg-neutral-800">
                         <span class="font-medium">
                             Paramètres
                         </span>
-                    </button>
+                    </a>
                 </li>
 
                 <li>
@@ -120,7 +120,10 @@
             </div>
             <ul class="flex flex-col gap-1">
                 <li>
-                    <button @click="darkMode = true" class="button-rounded dark:hover:!bg-neutral-800">
+                    <button @click="darkMode = true" 
+                            hx-get="{% url 'users:settings' %}?darkmode=true"
+                            hx-swap="none"
+                            class="button-rounded dark:hover:!bg-neutral-800">
                         <span class="font-medium">
                             Sombre
                         </span>
@@ -132,7 +135,10 @@
                     </button>
                 </li>
                 <li>
-                    <button @click="darkMode = false" class="button-rounded dark:hover:!bg-neutral-800">
+                    <button @click="darkMode = false" 
+                            hx-get="{% url 'users:settings' %}?darkmode=false"
+                            hx-swap="none"
+                            class="button-rounded dark:hover:!bg-neutral-800">
                         <span class="font-medium">
                             Clair
                         </span>

@@ -80,3 +80,22 @@ input[type="search"]::-webkit-search-cancel-button {
 .errorlist li {
     @apply text-[#366BF5] text-sm border-l-3 pl-3 my-1
 }
+.success {
+    @apply text-green-600 text-sm
+}
+.error {
+    @apply text-rose-600 text-sm
+}
+@keyframes scaleIn {
+    0% {
+        transform: scale(0.6);
+        opacity: 0;
+    }
+    100% {
+        transform: scale(1);
+        opacity: 1;
+    }
+}
+.scale-in {
+    animation: scaleIn 0.2s forwards;
+}

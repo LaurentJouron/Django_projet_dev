@@ -6,6 +6,7 @@ from .views import (
     VerificationCodeView,
     ProfileEditView,
     SettingsView,
+    DeleteAccountView,
 )
 
 app_name = "users"
@@ -20,4 +21,7 @@ urlpatterns = [
     ),
     path("profile/edit/", ProfileEditView.as_view(), name="profile_edit"),
     path("settings/", SettingsView.as_view(), name="settings"),
+    path(
+        "delete_account/", DeleteAccountView.as_view(), name="delete_account"
+    ),
 ]

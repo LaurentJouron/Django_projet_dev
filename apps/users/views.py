@@ -4,10 +4,12 @@ from django.views.generic import TemplateView
 from django.shortcuts import get_object_or_404, render, redirect
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.contrib.auth import get_user_model
+from django.contrib.auth import logout
 from django.http import HttpResponse
 from django.core.cache import cache
 from django.core.validators import validate_email
 from django.core.exceptions import ValidationError
+from django.urls import reverse
 from utils.mixins import PostSortingMixin, HTMXTemplateMixin
 from utils.emails.services import send_email_async
 from .forms import (
@@ -22,6 +24,12 @@ User = get_user_model()
 
 class IndexView(TemplateView):
     template_name = "users/index.html"
+    login_url = "posts:home"
+
+    def dispatch(self, request, *args, **kwargs):
+        if request.user.is_authenticated:
+            return redirect(self.login_url)
+        return super().dispatch(request, *args, **kwargs)
 
     @property
     def page_title(self):
@@ -56,10 +64,21 @@ class ProfileView(
 
     def get(self, request, *args, **kwargs):
         context = self.get_context_data(**kwargs)
+
+        if request.GET.get("link"):
+            username = self.kwargs.get("username")
+            urlpath = reverse("users:profile", kwargs={"username": username})
+            return render(
+                request,
+                "users/partials/_profile_link.html",
+                {"urlpath": urlpath},
+            )
+
         if request.GET.get("sort"):
             return self.render_to_response(
                 context, self.posts_partial_template
             )
+
         if request.htmx:
             return self.render_to_response(context, self.partial_template)
         return self.render_to_response(context)
@@ -216,3 +235,16 @@ class SettingsView(LoginRequiredMixin, View):
         # Default behavior
         form = EmailForm(instance=request.user)
         return render(request, self.template_name, {"form": form})
+
+
+class DeleteAccountView(LoginRequiredMixin, View):
+    template_name = "users/profile_delete.html"
+
+    def get(self, request, *args, **kwargs):
+        return render(request, self.template_name)
+
+    def post(self, request, *args, **kwargs):
+        user = request.user
+        logout(request)
+        user.delete()
+        return redirect("posts:home")

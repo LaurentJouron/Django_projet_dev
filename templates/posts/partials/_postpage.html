@@ -2,8 +2,8 @@
 {% load django_vite %}
 
 {% block content %}
-    <div class="grid lg:grid-cols-[1fr_540px] h-screen">
-        <div class="relative bg-black flex items-center justify-center">
+    <div class="grid lg:grid-cols-[1fr_540px] h-screen bg-white dark:bg-black">
+        <div class="relative bg-white dark:bg-black flex items-center justify-center">
             <img class="object-contain max-h-screen" src="{{ post.image.url }}">
 
             <button id="close-button"
@@ -74,9 +74,23 @@
                                         </div>
                                     </div>
                                 </a>
+                                {% if post.author == user %}
+                                <button @click="modalBox = true" 
+                                        hx-get={% url 'posts:post_edit' post.uuid %}
+                                        hx-target="#modalbox-content"
+                                        hx-swap="innerHTML"
+                                        class="size-10 rounded-full hover:bg-neutral-200 dark:bg-neutral-700 dark:hover:bg-neutral-600 flex items-center justify-center">
+                                    <div class="size-6">
+                                        <svg viewBox="0 0 48 48">
+                                            <path d="M5 24a4 4 0 1 1 8 0 4 4 0 0 1-8 0Zm15 0a4 4 0 1 1 8 0 4 4 0 0 1-8 0Zm15 0a4 4 0 1 1 8 0 4 4 0 0 1-8 0Z"></path>
+                                        </svg>
+                                    </div>
+                                </button>
+                                {% else %}
                                 <button class="bg-[#366BF5] hover:bg-[#5037F8] rounded-md px-6 py-2 text-white">
                                     Se connecter
                                 </button>
+                                {% endif %}
                             </div>
                         {% endif %}
 

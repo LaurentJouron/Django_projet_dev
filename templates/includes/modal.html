@@ -4,7 +4,7 @@
     x-transition:enter-start="opacity-0 scale-60"
     x-transition:enter-end="opacity-100 scale-100"
     @keydown.escape.window="modalPage = false; document.getElementById('modalpage-content').innerHTML = ''; window.history.replaceState({}, '', returnUrl); "
-    >
+>
     <div id="modalpage-content" class="h-full w-full bg-white"></div>
 </div>
 
@@ -14,12 +14,11 @@
     x-transition:enter-start="opacity-0 scale-60"
     x-transition:enter-end="opacity-100 scale-100"
     @keydown.escape.window="modalBox = false; document.getElementById('modalbox-content').innerHTML = ''; window.history.replaceState({}, '', returnUrl); "
-
 >
     <div @click.away="modalBox = false; document.getElementById('modalbox-content').innerHTML = '';" 
         class="scale-in bg-white rounded-lg p-6 shadow-xl max-w-2xl w-full min-h-40 relative dark:text-black">
         <button class="absolute right-8 top-8"
-            @click="modalBox = false; document.getElementById('modalbox-content').innerHTML = '';"
+                @click="modalBox = false; document.getElementById('modalbox-content').innerHTML = '';"
         >
             <div class="size-6 fill-black">
                 <svg viewBox="0 0 48 48">
@@ -27,6 +26,6 @@
                 </svg>
             </div>
         </button>
-        <div id="modalbox-content">Modal Box</div>
+        <div id="modalbox-content"></div>
     </div>
 </div>

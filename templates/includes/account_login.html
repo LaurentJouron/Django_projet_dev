@@ -1,5 +1,5 @@
 <div class="text-center p-5 border-t border-neutral-300">
     <p>
-        Vous avez déjà un compte ? <a href="{% url 'account_login' %}" class="text-[#366BF5] font-medium hover:underline">Se connecter</a>
+        Vous avez déjà un compte ? <a href="{% url 'account_login' %}?next={{ request.GET.next|urlencode }}" class="text-[#366BF5] font-medium hover:underline">Se connecter</a>
     </p>
 </div>

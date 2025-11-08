@@ -1,0 +1,26 @@
+{% extends 'layouts/main-layout.html' %}
+{% load static %}
+
+{% block title %}Delete {% endblock title %}
+
+{% block content %}
+
+<div class="ml-18 lg:ml-60 px-12 flex justify-center">
+    <div class="mt-48 text-center">
+        <h1>Suppression du compte</h1>
+        <p>Êtes-vous sûr de vouloir supprimer ce compte?</p>
+        <form method="POST" class="mt-5">
+            {% csrf_token %}
+            <button type="submit" class="bg-red-600 font-bold text-white rounded-md px-7 py-4">
+                Oui, je veux supprimer mon compte
+            </button>
+        </form>
+        <div class="mt-4">
+            <a href="{% url 'users:profile' user.username %}" class="font-medium text-neutral-400 hover:underline">
+                Annuler
+            </a>
+        </div>
+    </div>
+</div>
+
+{% endblock %}

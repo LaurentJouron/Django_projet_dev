@@ -1,11 +1,11 @@
+from django.views.generic import TemplateView, FormView
 from django.shortcuts import redirect, get_object_or_404
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.template.response import TemplateResponse
-from django.views.generic import TemplateView, FormView
 from django.core.paginator import Paginator
 from django.urls import reverse_lazy
 from utils.mixins import PostOrderingMixin, HTMXTemplateMixin
-from .forms import PostForm
+from .forms import PostForm, PostEditForm
 from .models import Post
 
 
@@ -168,3 +168,43 @@ class PostPageView(PostOrderingMixin, HTMXTemplateMixin, TemplateView):
             }
         )
         return context
+
+
+class PostEditView(LoginRequiredMixin, HTMXTemplateMixin, TemplateView):
+    template_name = "posts/postpage.html"
+    partial_template = "posts/partials/_post_edit.html"
+    redirect_home_url_name = "posts:home"
+    redirect_post_url_name = "posts:post_page"
+
+    def dispatch(self, request, *args, **kwargs):
+        self.post_obj = get_object_or_404(Post, uuid=self.kwargs["pk"])
+        if self.post_obj.author != request.user:
+            return redirect(self.redirect_home_url_name)
+        return super().dispatch(request, *args, **kwargs)
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        form = kwargs.get("form") or PostEditForm(instance=self.post_obj)
+        context.update({"form": form, "post": self.post_obj})
+        return context
+
+    def get(self, request, *args, **kwargs):
+        if request.GET.get("delete"):
+            self.post_obj.delete()
+            return redirect("users:profile", request.user)
+
+        context = self.get_context_data()
+        if request.htmx:
+            return self.render_to_response(context)
+        return redirect(self.redirect_post_url_name, self.post_obj.uuid)
+
+    def post(self, request, *args, **kwargs):
+        form = PostEditForm(request.POST, instance=self.post_obj)
+        if form.is_valid():
+            form.save()
+            return redirect(self.redirect_post_url_name, self.post_obj.uuid)
+
+        context = self.get_context_data(form=form)
+        if request.htmx:
+            return self.render_to_response(context)
+        return redirect(self.redirect_post_url_name, self.post_obj.uuid)

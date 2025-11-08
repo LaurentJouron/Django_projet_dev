@@ -1,0 +1,28 @@
+<div class="border-b border-neutral-200 pb-4">
+    <p class="font-medium text-2xl">
+        Edit post
+    </p>
+</div>
+
+<div class="border-b border-neutral-200 pt-4 pb-8">
+    <form method="POST" action="{% url 'posts:post_edit' post.uuid %}">
+        {% csrf_token %}
+        <div class="py-2">
+            <label class="block font-bold text-neutral-600 pb-1">Légende</label>
+            {{ form.body }}
+        </div>
+        <div class="py-2">
+            <label class="block font-bold text-neutral-600 pb-1">Hashtags</label>
+            {{ form.tags }}
+        </div>
+        <div class="mt-2 flex justify-end">
+            <button type="submit" class="bg-[#366BF5] hover:bg-[#5037F8] text-white rounded-md px-7 py-2 font-medium">
+                Modifier
+            </button>
+        </div>
+    </form>
+</div>
+
+<div class="pt-8 pb-4 text-center">
+    <a href="{% url 'posts:post_edit' post.uuid %}?delete=true" class="font-medium text-red-600 hover:underline">Supprimer ce poste</a>
+</div>

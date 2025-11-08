@@ -1,11 +1,17 @@
 from django.contrib import admin
 from django.conf import settings
-from django.urls import path, include
+from django.urls import path, include, reverse_lazy
+from allauth.account.views import PasswordChangeView
 
 urlpatterns = [
     # URLs of the applications
     path("", include("apps.posts.urls", namespace="posts")),
     path("users/", include("apps.users.urls", namespace="users")),
+    path(
+        "accounts/password/change/",
+        PasswordChangeView.as_view(success_url=reverse_lazy("users:settings")),
+        name="account_change_password",
+    ),
     path("accounts/", include("allauth.urls")),
 ]
 

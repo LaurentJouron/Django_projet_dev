@@ -1,0 +1,14 @@
+<div class="pb-6">
+    <div class="font-medium text-2xl">
+        Lien profile
+    </div>
+</div>
+
+<profile-url x-data="{ copyLink() { navigator.clipboard.writeText($refs.urlLink.innerText); } }" class="flex items-center bg-neutral-100 rounded-lg border border-neutral-200 text-sm">
+    <span x-ref="urlLink" class="grow px-4 py-2 text-neutral-500 dark:text-neutral-400 truncate">
+        {{ requet.scheme }}://{{ request.get_host }}{{ urlpath }}
+    </span>
+    <button @click="copyLink" class="shrink-0 px-4 py-2 font-bold hover:bg-neutral-50 active:bg-neutral-200 transition-colors">
+        Copier le lien
+    </button>
+</profile-url>

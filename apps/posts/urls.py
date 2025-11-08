@@ -5,6 +5,7 @@ from .views import (
     ExploreView,
     UploadView,
     PostPageView,
+    PostEditView,
 )
 
 app_name = "posts"
@@ -15,4 +16,5 @@ urlpatterns = [
     path("upload/", UploadView.as_view(), name="upload"),
     path("post/<uuid:pk>/", PostPageView.as_view(), name="post_page"),
     path("post/", PostPageView.as_view()),
+    path("post/<uuid:pk>/edit/", PostEditView.as_view(), name="post_edit"),
 ]

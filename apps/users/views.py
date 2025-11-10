@@ -12,6 +12,7 @@ from django.core.exceptions import ValidationError
 from django.urls import reverse
 from utils.mixins import PostSortingMixin, HTMXTemplateMixin
 from utils.emails.services import send_email_async
+from django.db.models import Count
 from .forms import (
     ProfileForm,
     EmailAddress,
@@ -53,11 +54,20 @@ class ProfileView(
         profile_user = get_object_or_404(User, username=username)
         profile_posts = self.get_sorted_posts(profile_user)
 
+        profile_posts_liked = profile_user.likedposts.all().order_by(
+            "-likedpost__created_at"
+        )
+        profile_user_likes = profile_user.posts.aggregate(
+            total_likes=Count("likes")
+        )["total_likes"]
+
         context.update(
             {
                 "page": self.page_title,
                 "profile_user": profile_user,
+                "profile_user_likes": profile_user_likes,
                 "profile_posts": profile_posts,
+                "profile_posts_liked": profile_posts_liked,
             }
         )
         return context
@@ -72,6 +82,13 @@ class ProfileView(
                 request,
                 "users/partials/_profile_link.html",
                 {"urlpath": urlpath},
+            )
+
+        if request.GET.get("liked"):
+            return render(
+                request,
+                "users/partials/_profile_posts_liked.html",
+                context=context,
             )
 
         if request.GET.get("sort"):

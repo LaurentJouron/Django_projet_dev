@@ -1,1 +1,4 @@
-
+# Environnement
+.venv
+.env
+db.sqlite3

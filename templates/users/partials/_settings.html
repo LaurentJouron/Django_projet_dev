@@ -52,9 +52,11 @@
 </div>
 
 <div id="password_reset_block" class="md:flex gap-2 py-4 border-b border-neutral-200">
-    <div class="w-32 font-medium text-md">Mot de passe</div>
+    <div class="w-32 font-medium text-md">
+        Mot de passe
+    </div>
+    
     <div class="grow">
-
         {% if messages %}
             {% for message in messages %}
                 {% if forloop.last %}
@@ -70,7 +72,9 @@
                 {% endif %}
             {% endfor %}
         {% else %}
-            <span>Modifier le mot de passe</span>
+            <span>
+                Modifier le mot de passe
+            </span>
         {% endif %}
     </div>
 

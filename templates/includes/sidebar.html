@@ -6,7 +6,7 @@
 
     <nav class="relative h-full bg-white dark:bg-black z-10">
         <div id="logo" class="pl-4.5 pt-5 mb-3 w-max">
-            <a href="">
+            <a href="{% url 'posts:home' %}">
                 <img class="hidden lg:block" :class="{ '!hidden': showDrawer }" src="{% vite_asset_url 'images/full_logo.png' %}" alt="">
                 <img class="block lg:hidden" :class="{ '!block': showDrawer }" src="{% vite_asset_url 'images/short_logo.png' %}" alt="">
             </a>

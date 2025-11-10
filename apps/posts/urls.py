@@ -6,6 +6,7 @@ from .views import (
     UploadView,
     PostPageView,
     PostEditView,
+    PostLikeView,
 )
 
 app_name = "posts"
@@ -17,4 +18,5 @@ urlpatterns = [
     path("post/<uuid:pk>/", PostPageView.as_view(), name="post_page"),
     path("post/", PostPageView.as_view()),
     path("post/<uuid:pk>/edit/", PostEditView.as_view(), name="post_edit"),
+    path("like/<uuid:pk>/", PostLikeView.as_view(), name="post_like"),
 ]

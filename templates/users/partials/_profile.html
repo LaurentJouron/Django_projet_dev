@@ -143,7 +143,11 @@
                                 class="px-3 py-2 rounded-sm" :class="selectedFilter === 'latest' ? 'bg-white text-[#366BF5] dark:bg-neutral-600' : 'text-neutral-500'">
                             Plus récent
                         </button>
-                        <button @click="selectedFilter = 'popular'" class="px-3 py-2 rounded-sm" :class="selectedFilter === 'popular' ? 'bg-white text-[#366BF5] dark:bg-neutral-600' : 'text-neutral-500'">
+                        <button @click="selectedFilter = 'popular'" 
+                                hx-get="{% url 'users:profile' profile_user.username %}?sort=popular"
+                                hx-target="#posts-container"
+                                hx-swap="innerHTML"
+                                class="px-3 py-2 rounded-sm" :class="selectedFilter === 'popular' ? 'bg-white text-[#366BF5] dark:bg-neutral-600' : 'text-neutral-500'">
                             Populaire
                         </button>
                         <button @click="selectedFilter = 'oldest'" 

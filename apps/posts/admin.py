@@ -12,7 +12,7 @@ class PostAdmin(admin.ModelAdmin):
 
 @admin.register(LikedPost)
 class LikedPostAdmin(admin.ModelAdmin):
-    list_display = ("user", "post")
+    list_display = ("created_at", "user", "post")
     list_filter = ("user", "post")
     search_fields = ("user__username", "post__body")
     ordering = ("-created_at",)

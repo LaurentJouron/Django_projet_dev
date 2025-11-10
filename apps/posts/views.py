@@ -1,10 +1,12 @@
+from django.views import View
 from django.views.generic import TemplateView, FormView
-from django.shortcuts import redirect, get_object_or_404
+from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.template.response import TemplateResponse
 from django.core.paginator import Paginator
 from django.urls import reverse_lazy
 from utils.mixins import PostOrderingMixin, HTMXTemplateMixin
+from django.db.models import Count
 from .forms import PostForm, PostEditForm
 from .models import Post
 
@@ -154,7 +156,6 @@ class PostPageView(PostOrderingMixin, HTMXTemplateMixin, TemplateView):
             next_post=next_post,
         )
 
-        # ✅ utilisation explicite de TemplateResponse pour éviter l’erreur
         if request.htmx:
             return TemplateResponse(request, self.partial_template, context)
         return TemplateResponse(request, self.template_name, context)
@@ -208,3 +209,41 @@ class PostEditView(LoginRequiredMixin, HTMXTemplateMixin, TemplateView):
         if request.htmx:
             return self.render_to_response(context)
         return redirect(self.redirect_post_url_name, self.post_obj.uuid)
+
+
+class PostLikeView(LoginRequiredMixin, View):
+    redirect_post_url_name = "posts:post_page"
+
+    def get(self, request, pk):
+        post = get_object_or_404(Post, uuid=pk)
+
+        if request.htmx:
+            if post.likes.filter(id=request.user.id).exists():
+                post.likes.remove(request.user)
+            else:
+                post.likes.add(request.user)
+
+        profile_user_likes = post.author.posts.aggregate(
+            total_likes=Count("likes")
+        )["total_likes"]
+
+        context = {
+            "post": post,
+            "profile_user_likes": profile_user_likes,
+        }
+
+        if request.GET.get("home"):
+            return render(
+                request,
+                template_name="posts/partials/_like_home.html",
+                context=context,
+            )
+
+        if request.GET.get("postpage"):
+            return render(
+                request,
+                template_name="posts/partials/_like_postpage.html",
+                context=context,
+            )
+
+        return redirect(self.redirect_post_url_name, pk)

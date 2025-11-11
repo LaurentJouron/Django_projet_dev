@@ -6,17 +6,43 @@
 {% block content %}
 
 <div class="ml-18 lg:ml-60 px-12 flex justify-center">
-    <div class="mt-48 text-center">
-        <h1>Suppression du compte</h1>
-        <p>Êtes-vous sûr de vouloir supprimer ce compte?</p>
+    <div class="mt-48 text-center max-w-md">
+        <h1 class="text-2xl font-bold mb-4">
+            Suppression du compte
+        </h1>
+
+        <!-- Warning message -->
+        <div class="bg-red-50 dark:bg-red-900/20 border-l-4 border-red-600 p-4 mb-6 text-left">
+            <div class="flex items-start">
+
+                <svg class="w-6 h-6 text-red-600 mr-3 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                    <path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/>
+                </svg>
+
+                <div>
+                    <p class="font-semibold text-red-800 dark:text-red-300">
+                        Attention : Cette action est irréversible
+                    </p>
+                    <p class="text-sm text-red-700 dark:text-red-400 mt-1">
+                        Toutes vos données, publications et informations seront définitivement supprimées.
+                    </p>
+                </div>
+            </div>
+        </div>
+
+        <p class="text-neutral-600 dark:text-neutral-400 mb-6">
+            Êtes-vous sûr de vouloir supprimer ce compte ?
+        </p>
+
         <form method="POST" class="mt-5">
             {% csrf_token %}
-            <button type="submit" class="bg-red-600 font-bold text-white rounded-md px-7 py-4">
+            <button type="submit" class="bg-red-600 hover:bg-red-700 font-bold text-white rounded-md px-7 py-4 transition-colors w-full sm:w-auto">
                 Oui, je veux supprimer mon compte
             </button>
         </form>
+
         <div class="mt-4">
-            <a href="{% url 'users:profile' user.username %}" class="font-medium text-neutral-400 hover:underline">
+            <a href="{% url 'users:profile' user.username %}" class="font-medium text-neutral-400 hover:text-neutral-600 dark:hover:text-neutral-200 hover:underline">
                 Annuler
             </a>
         </div>

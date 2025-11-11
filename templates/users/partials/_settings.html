@@ -60,15 +60,17 @@
         {% if messages %}
             {% for message in messages %}
                 {% if forloop.last %}
-                    <div 
-                        x-data="{ show: true }"
-                        x-init="setTimeout(() => show = false, 3000)"
-                        x-show="show"
-                        x-transition
-                        class="text-green-600"
+                    <div x-data="{ showMessage: true }" 
+                        x-init="setTimeout(() => showMessage = false, 3000)"
                     >
-                    {{ message }}
-                </div>
+                        <div x-show="showMessage" x-transition class="text-green-600">
+                            {{ message }}
+                        </div>
+
+                        <span x-show="!showMessage" x-transition>
+                            Modifier le mot de passe
+                        </span>
+                    </div>
                 {% endif %}
             {% endfor %}
         {% else %}

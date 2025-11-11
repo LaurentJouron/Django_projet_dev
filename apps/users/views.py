@@ -64,7 +64,7 @@ class ProfileView(
         """
         # Redirect if no username provided
         if not username:
-            return redirect("profile", request.user.username)
+            return redirect("users:profile", request.user.username)
 
         # Get the profile user
         profile_user = get_object_or_404(User, username=username)
@@ -110,7 +110,7 @@ class ProfileView(
         Returns:
             HttpResponse: Rendered profile link partial
         """
-        urlpath = reverse("profile", kwargs={"username": username})
+        urlpath = reverse("users:profile", kwargs={"username": username})
         return render(
             request, "users/partials/_profile_link.html", {"urlpath": urlpath}
         )

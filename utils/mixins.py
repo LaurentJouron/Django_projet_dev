@@ -11,8 +11,10 @@ class PostSortingMixin(PostOrderingMixin):
         if sort_order == "oldest":
             return user.posts.order_by("created_at")
         elif sort_order == "popular":
-            return user.posts.annotate(num_likes=Count("likes")).order_by(
-                "-num_likes", self.ordering
+            return (
+                user.posts.annotate(num_likes=Count("likes"))
+                .filter(num_likes__gt=0)
+                .order_by("-num_likes", self.ordering)
             )
         else:
             return user.posts.order_by(self.ordering)

@@ -58,9 +58,8 @@
     document.addEventListener('DOMContentLoaded', scrollLogic);
 </script>
 
-
 {% if partial %}
-    <title hx-swap-oob>ProjetDev - Home</title>
+    <title hx-swap-oob="true">ProjetDev - Home</title>
 
     <div hx-swap-oob="innerHTML" id="navigation">
         {% include "includes/navigation.html" %}

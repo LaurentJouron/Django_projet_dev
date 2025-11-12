@@ -14,7 +14,8 @@
                 </div>
             </button>
 
-            <button @click="scrollButton('down')" class="size-12 rounded-full bg-neutral-100 dark:bg-neutral-800 hover:bg-neutral-200 dark:hover:bg-neutral-700 flex items-center justify-center">
+            <button @click="scrollButton('down')" 
+            class="size-12 rounded-full bg-neutral-100 dark:bg-neutral-800 hover:bg-neutral-200 dark:hover:bg-neutral-700 flex items-center justify-center">
                 <div class="size-6">
                     <svg viewBox="0 0 48 48">
                         <path d="m24 27.76 13.17-13.17a1 1 0 0 1 1.42 0l2.82 2.82a1 1 0 0 1 0 1.42L25.06 35.18a1.5 1.5 0 0 1-2.12 0L6.59 18.83a1 1 0 0 1 0-1.42L9.4 14.6a1 1 0 0 1 1.42 0L24 27.76Z"></path>
@@ -28,21 +29,20 @@
 
 <script>
     function scrollLogic() {
-
-        // Hide ans show first scrollUp button
         const scrollContainer = document.getElementById('scrollContainer');
         const scrollButton = document.getElementById('scrollUp');
+
+        if (!scrollContainer || !scrollButton) return;
 
         scrollContainer.addEventListener('scroll', () => {
             if (scrollContainer.scrollTop > 10) {
                 scrollButton.classList.remove('opacity-0', 'pointer-events-none');
-             } else {
+            } else {
                 scrollButton.classList.add('opacity-0', 'pointer-events-none');
             }
         });
     }
 
-    // up & down button scroll
     window.scrollButton = function(direction) {
         let articles = [...document.querySelectorAll('article')];
         const current = articles.find(el => el.getBoundingClientRect().top >= 0);
@@ -55,8 +55,17 @@
         }
     }
 
+    // Initial load
     document.addEventListener('DOMContentLoaded', scrollLogic);
+
+    // 🔁 HTMX event: re-initialize after a swap
+    document.body.addEventListener('htmx:afterSwap', (event) => {
+        if (document.getElementById('scrollContainer')) {
+            scrollLogic();
+        }
+    });
 </script>
+
 
 {% if partial %}
     <title hx-swap-oob="true">ProjetDev - Home</title>

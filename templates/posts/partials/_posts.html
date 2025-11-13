@@ -62,19 +62,14 @@
                             </svg>
                         </div>
                     </div>
-                    <p class="font-bold text-xs text-neutral-600 dark:text-neutral-400 pt-1">3</p>
+                    <p class="font-bold text-xs text-neutral-600 dark:text-neutral-400 pt-1">
+                        {{ post.comments.count }}
+                    </p>
                 </button>
 
-                <button id="bookmark" class="cursor-pointer">
-                    <div class="button-article dark:!bg-neutral-800 hover:dark:!bg-neutral-900">
-                        <div class="size-6">
-                            <svg viewBox="0 0 24 24">
-                                <path d="M4 4.5a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v15.13a1 1 0 0 1-1.555.831l-6.167-4.12a.5.5 0 0 0-.556 0l-6.167 4.12A1 1 0 0 1 4 19.63z"></path>                                                                                         
-                            </svg>
-                        </div>
-                    </div>
-                    <p class="font-bold text-xs text-neutral-600 dark:text-neutral-400 pt-1">3</p>
-                </button>
+                <div id="bookmark_home_{{ post.uuid }}">
+                    {% include "./_bookmark_home.html" %}
+                </div>
 
                 <button id="share" class="cursor-pointer">
                     <div class="button-article dark:!bg-neutral-800 hover:dark:!bg-neutral-900">

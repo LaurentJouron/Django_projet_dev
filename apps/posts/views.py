@@ -5,10 +5,11 @@ from django.contrib.auth.mixins import LoginRequiredMixin
 from django.template.response import TemplateResponse
 from django.core.paginator import Paginator
 from django.urls import reverse_lazy
+from django.http import HttpResponse
 from utils.mixins import PostOrderingMixin, HTMXTemplateMixin
 from django.db.models import Count
 from .forms import PostForm, PostEditForm
-from .models import Post
+from .models import Post, Comment
 
 
 class HomeView(
@@ -48,21 +49,12 @@ class HomeView(
         context.update(
             {
                 "page": self.PAGE_TITLE,
-                "partial": self._is_htmx_request(),
+                "partial": self.is_htmx_request(),
                 **pagination_data,
             }
         )
 
         return context
-
-    def _is_htmx_request(self):
-        """
-        Check if the current request is an HTMX request.
-
-        Returns:
-            bool: True if HTMX request, False otherwise
-        """
-        return getattr(self.request, "htmx", False)
 
     def _get_page_number(self):
         """
@@ -168,21 +160,12 @@ class ExploreView(
         context.update(
             {
                 "page": self.PAGE_TITLE,
-                "partial": self._is_htmx_request(),
+                "partial": self.is_htmx_request(),
                 "posts": self._get_posts(),
             }
         )
 
         return context
-
-    def _is_htmx_request(self):
-        """
-        Check if the current request is an HTMX request.
-
-        Returns:
-            bool: True if HTMX request, False otherwise
-        """
-        return getattr(self.request, "htmx", False)
 
     def _get_posts(self):
         """
@@ -231,7 +214,7 @@ class UploadView(
         context.update(
             {
                 "page": self.PAGE_TITLE,
-                "partial": self._is_htmx_request(),
+                "partial": self.is_htmx_request(),
             }
         )
         return context
@@ -274,15 +257,6 @@ class UploadView(
         post.save()
         return post
 
-    def _is_htmx_request(self):
-        """
-        Check if the current request is an HTMX request.
-
-        Returns:
-            bool: True if HTMX request, False otherwise
-        """
-        return getattr(self.request, "htmx", False)
-
     def _render_htmx_response(self):
         """
         Render the HTMX partial response with updated posts.
@@ -314,6 +288,7 @@ class PostPageView(PostOrderingMixin, HTMXTemplateMixin, TemplateView):
 
     template_name = "posts/postpage.html"
     partial_template = "posts/partials/_postpage.html"
+    comment_partial = "posts/partials/comments/_comment_loop.html"
 
     # Configuration
     PAGE_TITLE = "Post Page"
@@ -344,6 +319,38 @@ class PostPageView(PostOrderingMixin, HTMXTemplateMixin, TemplateView):
 
         # Render appropriate template
         return self._render_response(request, context)
+
+    def post(self, request, *args, **kwargs):
+        """
+        Handle POST requests for adding a new comment to a post.
+
+        Processes form data submitted via POST to create a new comment
+        associated with the specified post. Supports HTMX partial rendering
+        to refresh only the comment section dynamically.
+
+        Args:
+            request: The HTTP request object containing form data.
+            *args: Additional positional arguments.
+            **kwargs: Additional keyword arguments (includes 'pk').
+
+        Returns:
+            TemplateResponse: Rendered comment loop partial with the updated
+            comment list for the current post.
+        """
+        pk = self.kwargs.get("pk")
+        if not pk:
+            return redirect(self.REDIRECT_URL)
+
+        post = get_object_or_404(Post, uuid=pk)
+        body = request.POST.get("comment")
+
+        if body:
+            Comment.objects.create(author=request.user, post=post, body=body)
+
+        # Limited context to refresh comments section via HTMX
+        context = {"post": post}
+
+        return TemplateResponse(request, self.comment_partial, context)
 
     def get_context_data(self, **kwargs):
         """
@@ -480,22 +487,10 @@ class PostPageView(PostOrderingMixin, HTMXTemplateMixin, TemplateView):
         """
         template = (
             self.partial_template
-            if self._is_htmx_request(request)
+            if self.is_htmx_request()
             else self.template_name
         )
         return TemplateResponse(request, template, context)
-
-    def _is_htmx_request(self, request):
-        """
-        Check if the current request is an HTMX request.
-
-        Args:
-            request: The HTTP request object
-
-        Returns:
-            bool: True if HTMX request, False otherwise
-        """
-        return getattr(request, "htmx", False)
 
 
 class PostEditView(LoginRequiredMixin, HTMXTemplateMixin, TemplateView):
@@ -544,13 +539,13 @@ class PostEditView(LoginRequiredMixin, HTMXTemplateMixin, TemplateView):
             HttpResponse: Rendered edit form or redirect after deletion
         """
         # Handle post deletion
-        if self._is_delete_request(request):
+        if self.is_delete_request(request):
             return self._handle_delete(request)
 
         # Render edit form
         context = self.get_context_data()
 
-        if self._is_htmx_request(request):
+        if self.is_htmx_request(request):
             return self.render_to_response(context)
 
         return self._redirect_to_post()
@@ -649,18 +644,6 @@ class PostEditView(LoginRequiredMixin, HTMXTemplateMixin, TemplateView):
         self.post_obj.delete()
         return redirect(self.REDIRECT_PROFILE_URL_NAME, request.user.username)
 
-    def _is_htmx_request(self, request):
-        """
-        Check if the current request is an HTMX request.
-
-        Args:
-            request: The HTTP request object
-
-        Returns:
-            bool: True if HTMX request, False otherwise
-        """
-        return getattr(request, "htmx", False)
-
     def _get_form(self, data=None):
         """
         Instantiate the edit form.
@@ -714,7 +697,7 @@ class PostEditView(LoginRequiredMixin, HTMXTemplateMixin, TemplateView):
         return redirect(self.REDIRECT_POST_URL_NAME, self.post_obj.uuid)
 
 
-class PostLikeView(LoginRequiredMixin, View):
+class PostLikeView(LoginRequiredMixin, HTMXTemplateMixin, View):
     """
     Post like/unlike view.
 
@@ -744,7 +727,7 @@ class PostLikeView(LoginRequiredMixin, View):
         post = self._get_post(pk)
 
         # Toggle like if HTMX request
-        if self._is_htmx_request(request):
+        if self.is_htmx_request(request):
             self._toggle_like(post, request.user)
 
         # Prepare context
@@ -771,18 +754,6 @@ class PostLikeView(LoginRequiredMixin, View):
             Post: Post instance
         """
         return get_object_or_404(Post, uuid=pk)
-
-    def _is_htmx_request(self, request):
-        """
-        Check if the current request is an HTMX request.
-
-        Args:
-            request: The HTTP request object
-
-        Returns:
-            bool: True if HTMX request, False otherwise
-        """
-        return getattr(request, "htmx", False)
 
     def _toggle_like(self, post, user):
         """
@@ -865,3 +836,672 @@ class PostLikeView(LoginRequiredMixin, View):
             HttpResponseRedirect: Redirect to post page
         """
         return redirect(self.REDIRECT_POST_URL_NAME, pk)
+
+
+class BookmarkPostView(LoginRequiredMixin, HTMXTemplateMixin, View):
+    """
+    Bookmark/unbookmark post view.
+
+    Handles toggling bookmarks on posts with HTMX support for different
+    rendering contexts (home page, post page).
+    """
+
+    # URL configuration
+    REDIRECT_POST_URL_NAME = "posts:post_page"
+
+    # Template configuration
+    TEMPLATE_BOOKMARK_HOME = "posts/partials/_bookmark_home.html"
+    TEMPLATE_BOOKMARK_POSTPAGE = "posts/partials/_bookmark_postpage.html"
+
+    def get(self, request, pk):
+        """
+        Handle GET requests for bookmark/unbookmark actions.
+
+        Args:
+            request: The HTTP request object
+            pk: Post UUID
+
+        Returns:
+            HttpResponse: Rendered partial or redirect
+        """
+        post = self._get_post(pk)
+
+        # Toggle bookmark if HTMX request
+        if self.is_htmx_request():
+            self._toggle_bookmark(post, request.user)
+
+        # Prepare context
+        context = self._get_context_data(post)
+
+        # Render appropriate template based on source
+        if request.GET.get("home"):
+            return self._render_home_partial(request, context)
+
+        if request.GET.get("postpage"):
+            return self._render_postpage_partial(request, context)
+
+        # Fallback redirect
+        return self._redirect_to_post(pk)
+
+    def _get_post(self, pk):
+        """
+        Get the post object or raise 404.
+
+        Args:
+            pk: Post UUID
+
+        Returns:
+            Post: Post instance
+        """
+        return get_object_or_404(Post, uuid=pk)
+
+    def _toggle_bookmark(self, post, user):
+        """
+        Toggle bookmark status for the user on the post.
+
+        Args:
+            post: Post instance
+            user: User instance
+        """
+        if post.bookmarks.filter(id=user.id).exists():
+            post.bookmarks.remove(user)
+        else:
+            post.bookmarks.add(user)
+
+    def _get_context_data(self, post):
+        """
+        Prepare context data with post.
+
+        Args:
+            post: Post instance
+
+        Returns:
+            dict: Context dictionary
+        """
+        return {"post": post}
+
+    def _render_home_partial(self, request, context):
+        """
+        Render the home page bookmark partial.
+
+        Args:
+            request: The HTTP request object
+            context: Context dictionary
+
+        Returns:
+            HttpResponse: Rendered home partial
+        """
+        return render(request, self.TEMPLATE_BOOKMARK_HOME, context)
+
+    def _render_postpage_partial(self, request, context):
+        """
+        Render the post page bookmark partial.
+
+        Args:
+            request: The HTTP request object
+            context: Context dictionary
+
+        Returns:
+            HttpResponse: Rendered post page partial
+        """
+        return render(request, self.TEMPLATE_BOOKMARK_POSTPAGE, context)
+
+    def _redirect_to_post(self, pk):
+        """
+        Redirect to the post detail page.
+
+        Args:
+            pk: Post UUID
+
+        Returns:
+            HttpResponseRedirect: Redirect to post page
+        """
+        return redirect(self.REDIRECT_POST_URL_NAME, pk)
+
+
+class CommentView(LoginRequiredMixin, HTMXTemplateMixin, View):
+    """
+    Comment reply view.
+
+    Handles adding replies to comments and rendering comment-related
+    partials. Requires HTMX requests.
+    """
+
+    # URL configuration
+    REDIRECT_HOME_URL_NAME = "posts:home"
+
+    # Template configuration
+    TEMPLATE_VIEW_REPLIES = "posts/partials/comments/_button_view_replies.html"
+    TEMPLATE_REPLY_FORM = "posts/partials/comments/_form_add_reply.html"
+    TEMPLATE_REPLY_LOOP = "posts/partials/comments/_reply_loop.html"
+
+    def get(self, request, pk):
+        """
+        Handle GET requests for comment-related actions.
+
+        Args:
+            request: The HTTP request object
+            pk: Comment UUID
+
+        Returns:
+            HttpResponse: Rendered partial or redirect
+        """
+        # HTMX required
+        if not self.is_htmx_request():
+            return self._redirect_to_home()
+
+        comment = self._get_comment(pk)
+        parent_comment = self._get_parent_comment(comment)
+        parent_reply = self._get_parent_reply(comment)
+
+        context = self._get_context_data(comment, parent_comment)
+
+        # Render appropriate template based on action
+        if request.GET.get("hide_replies"):
+            return self._render_view_replies_button(request, context)
+
+        if request.GET.get("reply_form"):
+            return self._render_reply_form(request, context)
+
+        return self._render_reply_loop(request, context)
+
+    def post(self, request, pk):
+        """
+        Handle POST requests for creating replies.
+
+        Args:
+            request: The HTTP request object
+            pk: Comment UUID
+
+        Returns:
+            HttpResponse: Rendered reply loop partial
+        """
+        # HTMX required
+        if not self.is_htmx_request():
+            return self._redirect_to_home()
+
+        comment = self._get_comment(pk)
+        parent_comment = self._get_parent_comment(comment)
+        parent_reply = self._get_parent_reply(comment)
+
+        # Create reply if body is provided
+        body = request.POST.get("reply")
+        if body:
+            self._create_reply(
+                user=request.user,
+                comment=comment,
+                parent_comment=parent_comment,
+                parent_reply=parent_reply,
+                body=body,
+            )
+
+        context = self._get_context_data(comment, parent_comment)
+        return self._render_reply_loop(request, context)
+
+    def _redirect_to_home(self):
+        """
+        Redirect to home page.
+
+        Returns:
+            HttpResponseRedirect: Redirect to home
+        """
+        return redirect(self.REDIRECT_HOME_URL_NAME)
+
+    def _get_comment(self, pk):
+        """
+        Get the comment object or raise 404.
+
+        Args:
+            pk: Comment UUID
+
+        Returns:
+            Comment: Comment instance
+        """
+        return get_object_or_404(Comment, uuid=pk)
+
+    def _get_parent_comment(self, comment):
+        """
+        Get the root parent comment by traversing up the tree.
+
+        Args:
+            comment: Comment instance
+
+        Returns:
+            Comment: Root parent comment
+        """
+        parent_comment = comment
+        while parent_comment.parent_comment is not None:
+            parent_comment = parent_comment.parent_comment
+        return parent_comment
+
+    def _get_parent_reply(self, comment):
+        """
+        Get the direct parent reply if comment is a reply.
+
+        Args:
+            comment: Comment instance
+
+        Returns:
+            Comment or None: Parent reply or None if top-level comment
+        """
+        return comment if comment.parent_comment else None
+
+    def _create_reply(self, user, comment, parent_comment, parent_reply, body):
+        """
+        Create a new reply to a comment.
+
+        Args:
+            user: User creating the reply
+            comment: Comment being replied to
+            parent_comment: Root parent comment
+            parent_reply: Direct parent reply
+            body: Reply text content
+
+        Returns:
+            Comment: Created reply instance
+        """
+        return Comment.objects.create(
+            author=user,
+            post=comment.post,
+            parent_comment=parent_comment,
+            parent_reply=parent_reply,
+            body=body,
+        )
+
+    def _get_context_data(self, comment, parent_comment):
+        """
+        Prepare context data with comment information.
+
+        Args:
+            comment: Current comment instance
+            parent_comment: Root parent comment instance
+
+        Returns:
+            dict: Context dictionary
+        """
+        return {
+            "comment": parent_comment,
+            "current_comment": comment,
+        }
+
+    def _render_view_replies_button(self, request, context):
+        """
+        Render the view replies button partial.
+
+        Args:
+            request: The HTTP request object
+            context: Context dictionary
+
+        Returns:
+            HttpResponse: Rendered partial
+        """
+        return render(request, self.TEMPLATE_VIEW_REPLIES, context)
+
+    def _render_reply_form(self, request, context):
+        """
+        Render the reply form partial.
+
+        Args:
+            request: The HTTP request object
+            context: Context dictionary
+
+        Returns:
+            HttpResponse: Rendered partial
+        """
+        return render(request, self.TEMPLATE_REPLY_FORM, context)
+
+    def _render_reply_loop(self, request, context):
+        """
+        Render the reply loop partial.
+
+        Args:
+            request: The HTTP request object
+            context: Context dictionary
+
+        Returns:
+            HttpResponse: Rendered partial
+        """
+        return render(request, self.TEMPLATE_REPLY_LOOP, context)
+
+
+class CommentDeleteView(LoginRequiredMixin, HTMXTemplateMixin, View):
+    """
+    Comment deletion view.
+
+    Handles comment deletion with authorization check and HTMX
+    out-of-band swap for updating comment count.
+    """
+
+    # URL configuration
+    REDIRECT_HOME_URL_NAME = "posts:home"
+
+    # Template configuration
+    TEMPLATE_DELETE_FORM = "posts/partials/comments/_form_delete_comment.html"
+
+    def get(self, request, pk):
+        """
+        Handle GET requests for showing delete confirmation.
+
+        Args:
+            request: The HTTP request object
+            pk: Comment UUID
+
+        Returns:
+            HttpResponse: Rendered delete form or redirect
+        """
+        # HTMX required
+        if not self.is_htmx_request():
+            return self._redirect_to_home()
+
+        comment = self._get_comment(pk)
+
+        # Check authorization
+        if not self._is_comment_author(comment, request.user):
+            return HttpResponse()
+
+        context = self._get_context_data(comment)
+        return self._render_delete_form(request, context)
+
+    def post(self, request, pk):
+        """
+        Handle POST requests for deleting comments.
+
+        Args:
+            request: The HTTP request object
+            pk: Comment UUID
+
+        Returns:
+            HttpResponse: OOB swap response with updated comment count
+        """
+        # HTMX required
+        if not self.is_htmx_request():
+            return self._redirect_to_home()
+
+        comment = self._get_comment(pk)
+
+        # Check authorization
+        if not self._is_comment_author(comment, request.user):
+            return HttpResponse()
+
+        # Delete comment and return OOB response
+        post = comment.post
+        comment.delete()
+
+        return self._render_oob_response(post)
+
+    def _redirect_to_home(self):
+        """
+        Redirect to home page.
+
+        Returns:
+            HttpResponseRedirect: Redirect to home
+        """
+        return redirect(self.REDIRECT_HOME_URL_NAME)
+
+    def _get_comment(self, pk):
+        """
+        Get the comment object or raise 404.
+
+        Args:
+            pk: Comment UUID
+
+        Returns:
+            Comment: Comment instance
+        """
+        return get_object_or_404(Comment, uuid=pk)
+
+    def _is_comment_author(self, comment, user):
+        """
+        Check if the user is the comment author.
+
+        Args:
+            comment: Comment instance
+            user: User instance
+
+        Returns:
+            bool: True if user is the author, False otherwise
+        """
+        return comment.author == user
+
+    def _get_context_data(self, comment):
+        """
+        Prepare context data with comment.
+
+        Args:
+            comment: Comment instance
+
+        Returns:
+            dict: Context dictionary
+        """
+        return {"comment": comment}
+
+    def _render_delete_form(self, request, context):
+        """
+        Render the delete confirmation form.
+
+        Args:
+            request: The HTTP request object
+            context: Context dictionary
+
+        Returns:
+            HttpResponse: Rendered delete form
+        """
+        return render(request, self.TEMPLATE_DELETE_FORM, context)
+
+    def _render_oob_response(self, post):
+        """
+        Render HTMX out-of-band swap response with updated comment count.
+
+        Args:
+            post: Post instance
+
+        Returns:
+            HttpResponse: OOB swap HTML
+        """
+        comment_count = post.comments.count()
+        response = (
+            f"<div hx-swap-oob='innerHTML' id='comment_count'>"
+            f"{comment_count}</div>"
+        )
+        return HttpResponse(response)
+
+
+class LikeCommentView(LoginRequiredMixin, View):
+    """
+    Comment like/unlike view.
+
+    Handles toggling likes on comments. Requires HTMX requests.
+    """
+
+    # URL configuration
+    REDIRECT_HOME_URL_NAME = "home"
+
+    # Template configuration
+    TEMPLATE_LIKE_BUTTON = "posts/partials/comments/_button_like_comment.html"
+
+    def get(self, request, pk):
+        """
+        Handle GET requests for like/unlike actions.
+
+        Args:
+            request: The HTTP request object
+            pk: Comment UUID
+
+        Returns:
+            HttpResponse: Rendered like button partial or redirect
+        """
+        # HTMX required
+        if not self.is_htmx_request():
+            return self._redirect_to_home()
+
+        comment = self._get_comment(pk)
+        self._toggle_like(comment, request.user)
+
+        context = self._get_context_data(comment)
+        return self._render_like_button(request, context)
+
+    def _is_htmx_request(self, request):
+        """
+        Check if the current request is an HTMX request.
+
+        Args:
+            request: The HTTP request object
+
+        Returns:
+            bool: True if HTMX request, False otherwise
+        """
+        return getattr(request, "htmx", False)
+
+    def _redirect_to_home(self):
+        """
+        Redirect to home page.
+
+        Returns:
+            HttpResponseRedirect: Redirect to home
+        """
+        return redirect(self.REDIRECT_HOME_URL_NAME)
+
+    def _get_comment(self, pk):
+        """
+        Get the comment object or raise 404.
+
+        Args:
+            pk: Comment UUID
+
+        Returns:
+            Comment: Comment instance
+        """
+        return get_object_or_404(Comment, uuid=pk)
+
+    def _toggle_like(self, comment, user):
+        """
+        Toggle like status for the user on the comment.
+
+        Args:
+            comment: Comment instance
+            user: User instance
+        """
+        if comment.likes.filter(id=user.id).exists():
+            comment.likes.remove(user)
+        else:
+            comment.likes.add(user)
+
+    def _get_context_data(self, comment):
+        """
+        Prepare context data with comment.
+
+        Args:
+            comment: Comment instance
+
+        Returns:
+            dict: Context dictionary
+        """
+        return {"comment": comment}
+
+    def _render_like_button(self, request, context):
+        """
+        Render the like button partial.
+
+        Args:
+            request: The HTTP request object
+            context: Context dictionary
+
+        Returns:
+            HttpResponse: Rendered like button
+        """
+        return render(request, self.TEMPLATE_LIKE_BUTTON, context)
+
+
+class SharePostView(LoginRequiredMixin, View):
+    """
+    Post share/repost view.
+
+    Handles reposting posts and displaying the share modal.
+    """
+
+    # URL configuration
+    REDIRECT_HOME_URL_NAME = "home"
+
+    # Template configuration
+    TEMPLATE_SHARE_MODAL = "a_posts/partials/_post_share.html"
+
+    def get(self, request, pk):
+        """
+        Handle GET requests for share/repost actions.
+
+        Args:
+            request: The HTTP request object
+            pk: Post UUID
+
+        Returns:
+            HttpResponse: Rendered share modal or redirect
+        """
+        post = self._get_post(pk)
+
+        # Handle repost action
+        if request.GET.get("repost"):
+            self._toggle_repost(post, request.user)
+            return self._redirect_to_home()
+
+        # Show share modal
+        context = self._get_context_data(post)
+        return self._render_share_modal(request, context)
+
+    def _get_post(self, pk):
+        """
+        Get the post object or raise 404.
+
+        Args:
+            pk: Post UUID
+
+        Returns:
+            Post: Post instance
+        """
+        return get_object_or_404(Post, uuid=pk)
+
+    def _toggle_repost(self, post, user):
+        """
+        Toggle repost status for the user on the post.
+
+        Args:
+            post: Post instance
+            user: User instance
+        """
+        if post.reposts.filter(id=user.id).exists():
+            post.reposts.remove(user)
+        else:
+            post.reposts.add(user)
+
+    def _redirect_to_home(self):
+        """
+        Redirect to home page.
+
+        Returns:
+            HttpResponseRedirect: Redirect to home
+        """
+        return redirect(self.REDIRECT_HOME_URL_NAME)
+
+    def _get_context_data(self, post):
+        """
+        Prepare context data with post.
+
+        Args:
+            post: Post instance
+
+        Returns:
+            dict: Context dictionary
+        """
+        return {"post": post}
+
+    def _render_share_modal(self, request, context):
+        """
+        Render the share modal partial.
+
+        Args:
+            request: The HTTP request object
+            context: Context dictionary
+
+        Returns:
+            HttpResponse: Rendered share modal
+        """
+        return render(request, self.TEMPLATE_SHARE_MODAL, context)

@@ -26,6 +26,7 @@ INSTALLED_APPS = [
     "django.contrib.staticfiles",
     "django.contrib.sitemaps",
     # Additional apps
+    "jazzmin",
     "django_cleanup.apps.CleanupConfig",
     "django_extensions",
     "django_vite",

@@ -9,9 +9,6 @@
     <meta charset="UTF-8">
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="robots" content="index, follow">
-    <meta name="description" content="">
-    <meta name="keywords" content="">
     <meta name="author" content="Laurent Jouron">
 
     {% block seo_meta %}
@@ -48,9 +45,8 @@
 </head>
 <body x-data="{ modalPage: false, modalBox: false }" class="dark:bg-black dark:text-white dark:fill-white" hx-headers='{"x-csrftoken": "{{ csrftoken }}"}'>
 
-        
     {% include "./includes/modal.html" %}
-    
+
     {% block layout %}{% endblock %}
 
 </body>

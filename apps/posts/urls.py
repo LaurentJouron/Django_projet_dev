@@ -9,6 +9,9 @@ from .views import (
     PostLikeView,
     BookmarkPostView,
     CommentView,
+    CommentDeleteView,
+    LikeCommentView,
+    SharePostView,
 )
 
 app_name = "posts"
@@ -25,4 +28,15 @@ urlpatterns = [
         "bookmark/<uuid:pk>/", BookmarkPostView.as_view(), name="bookmark_post"
     ),
     path("comment/<uuid:pk>/", CommentView.as_view(), name="comment"),
+    path(
+        "comment/<uuid:pk>/delete/",
+        CommentDeleteView.as_view(),
+        name="comment_delete",
+    ),
+    path(
+        "like-comment/<uuid:pk>/",
+        LikeCommentView.as_view(),
+        name="like_comment",
+    ),
+    path("share/<uuid:pk>/", SharePostView.as_view(), name="share_post"),
 ]

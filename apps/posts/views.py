@@ -8,17 +8,19 @@ from django.urls import reverse_lazy
 from django.http import HttpResponse
 from utils.mixins import PostOrderingMixin, HTMXTemplateMixin
 from django.db.models import Count
+from itertools import chain
+from operator import attrgetter
 from .forms import PostForm, PostEditForm
-from .models import Post, Comment
+from .models import Post, Comment, Repost
 
 
 class HomeView(
     LoginRequiredMixin, PostOrderingMixin, HTMXTemplateMixin, TemplateView
 ):
     """
-    Home view displaying paginated posts.
+    Home view displaying paginated posts and reposts.
 
-    Displays a feed of posts with pagination support and HTMX
+    Displays a feed of posts and reposts with pagination support and HTMX
     partial rendering for infinite scroll functionality.
     """
 
@@ -79,8 +81,8 @@ class HomeView(
         Returns:
             dict: Dictionary containing posts, next_page, and page_start_index
         """
-        posts = self._get_posts_queryset()
-        paginator = Paginator(posts, self.PAGINATE_BY)
+        feed = self._get_combined_feed()
+        paginator = Paginator(feed, self.PAGINATE_BY)
         page_number = self._get_page_number()
         posts_page = paginator.get_page(page_number)
 
@@ -97,9 +99,55 @@ class HomeView(
         Get the base queryset for posts.
 
         Returns:
-            QuerySet: Posts ordered by the configured ordering
+            QuerySet: Posts ordered by creation date
         """
-        return Post.objects.order_by(self.ordering)
+        return Post.objects.order_by("-created_at")
+
+    def _get_reposts_queryset(self):
+        """
+        Get the base queryset for reposts with related data.
+
+        Returns:
+            QuerySet: Reposts with post and user data
+        """
+        return Repost.objects.select_related("post", "user")
+
+    def _prepare_reposted_posts(self):
+        """
+        Prepare reposted posts with repost metadata.
+
+        Returns:
+            list: List of posts with repost information
+        """
+        reposts = self._get_reposts_queryset()
+        reposted_posts = []
+
+        for repost in reposts:
+            post = repost.post
+            post.created_at = repost.created_at
+            post.repost_author = repost.user
+            post.is_repost = True
+            reposted_posts.append(post)
+
+        return reposted_posts
+
+    def _get_combined_feed(self):
+        """
+        Combine posts and reposts into a single sorted feed.
+
+        Returns:
+            list: Combined and sorted feed of posts and reposts
+        """
+        posts = self._get_posts_queryset()
+        reposted_posts = self._prepare_reposted_posts()
+
+        feed = sorted(
+            chain(posts, reposted_posts),
+            key=attrgetter("created_at"),
+            reverse=True,
+        )
+
+        return feed
 
     def _get_next_page_number(self, posts_page):
         """
@@ -992,7 +1040,6 @@ class CommentView(LoginRequiredMixin, HTMXTemplateMixin, View):
 
         comment = self._get_comment(pk)
         parent_comment = self._get_parent_comment(comment)
-        parent_reply = self._get_parent_reply(comment)
 
         context = self._get_context_data(comment, parent_comment)
 
@@ -1306,7 +1353,7 @@ class CommentDeleteView(LoginRequiredMixin, HTMXTemplateMixin, View):
         return HttpResponse(response)
 
 
-class LikeCommentView(LoginRequiredMixin, View):
+class LikeCommentView(LoginRequiredMixin, HTMXTemplateMixin, View):
     """
     Comment like/unlike view.
 
@@ -1314,7 +1361,7 @@ class LikeCommentView(LoginRequiredMixin, View):
     """
 
     # URL configuration
-    REDIRECT_HOME_URL_NAME = "home"
+    REDIRECT_HOME_URL_NAME = "posts:home"
 
     # Template configuration
     TEMPLATE_LIKE_BUTTON = "posts/partials/comments/_button_like_comment.html"
@@ -1339,18 +1386,6 @@ class LikeCommentView(LoginRequiredMixin, View):
 
         context = self._get_context_data(comment)
         return self._render_like_button(request, context)
-
-    def _is_htmx_request(self, request):
-        """
-        Check if the current request is an HTMX request.
-
-        Args:
-            request: The HTTP request object
-
-        Returns:
-            bool: True if HTMX request, False otherwise
-        """
-        return getattr(request, "htmx", False)
 
     def _redirect_to_home(self):
         """
@@ -1420,10 +1455,10 @@ class SharePostView(LoginRequiredMixin, View):
     """
 
     # URL configuration
-    REDIRECT_HOME_URL_NAME = "home"
+    REDIRECT_HOME_URL_NAME = "posts:home"
 
     # Template configuration
-    TEMPLATE_SHARE_MODAL = "a_posts/partials/_post_share.html"
+    TEMPLATE_SHARE_MODAL = "posts/partials/_post_share.html"
 
     def get(self, request, pk):
         """

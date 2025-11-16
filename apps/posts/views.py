@@ -1,21 +1,108 @@
+import logging
 from django.views import View
 from django.views.generic import TemplateView, FormView
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.template.response import TemplateResponse
 from django.core.paginator import Paginator
+from django.core.cache import cache
 from django.urls import reverse_lazy
-from django.http import HttpResponse
+from django.http import HttpResponse, HttpResponseForbidden
+from django.db import transaction
+from django.db.models import Count, Prefetch
 from utils.mixins import PostOrderingMixin, HTMXTemplateMixin
-from django.db.models import Count
 from itertools import chain
 from operator import attrgetter
 from .forms import PostForm, PostEditForm
 from .models import Post, Comment, Repost
 
+logger = logging.getLogger(__name__)
+
+
+class BasePostView(PostOrderingMixin):
+    """Base view with common post operations and security measures."""
+
+    REDIRECT_URL = "posts:home"
+
+    def get_posts(self):
+        """
+        Get all posts with optimized queries to avoid N+1 problems.
+
+        Returns:
+            QuerySet: Optimized posts queryset
+        """
+        return (
+            Post.objects.select_related("author")
+            .prefetch_related(
+                "likes",
+                "bookmarks",
+                "reposts",
+                Prefetch(
+                    "comments",
+                    queryset=Comment.objects.select_related("author"),
+                ),
+            )
+            .order_by(self.ordering)
+        )
+
+    def get_post(self, pk):
+        """
+        Get a single post with optimized queries.
+
+        Args:
+            pk: Post UUID
+
+        Returns:
+            Post: Post instance with related data
+        """
+        return get_object_or_404(
+            Post.objects.select_related("author").prefetch_related(
+                "likes", "bookmarks", "comments__author", "comments__likes"
+            ),
+            uuid=pk,
+        )
+
+    def redirect_to_home(self):
+        """
+        Redirect to home page.
+
+        Returns:
+            HttpResponseRedirect: Redirect to home
+        """
+        return redirect(self.REDIRECT_URL)
+
+    def check_rate_limit(self, request, action, limit=50, window=60):
+        """
+        Check rate limiting for user actions.
+
+        Args:
+            request: HTTP request object
+            action: Action name (e.g., 'like', 'comment')
+            limit: Maximum actions per window
+            window: Time window in seconds
+
+        Returns:
+            bool: True if within limit, False otherwise
+        """
+        cache_key = f"{action}_{request.user.id}"
+        action_count = cache.get(cache_key, 0)
+
+        if action_count >= limit:
+            logger.warning(
+                f"Rate limit exceeded for user {request.user.id} "
+                f"on action {action}"
+            )
+            return False
+
+        cache.set(cache_key, action_count + 1, window)
+        return True
+
 
 class HomeView(
-    LoginRequiredMixin, PostOrderingMixin, HTMXTemplateMixin, TemplateView
+    BasePostView,
+    LoginRequiredMixin,
+    HTMXTemplateMixin,
+    TemplateView,
 ):
     """
     Home view displaying paginated posts and reposts.
@@ -29,8 +116,9 @@ class HomeView(
     paginator_partial_template = "posts/partials/_posts.html"
 
     # Pagination configuration
-    PAGINATE_BY = 1
+    PAGINATE_BY = 10
     DEFAULT_PAGE_NUMBER = 1
+    ORPHANS = 2
 
     # Page configuration
     PAGE_TITLE = "Home"
@@ -46,15 +134,28 @@ class HomeView(
             dict: Context dictionary with posts and pagination info
         """
         context = super().get_context_data(**kwargs)
-        pagination_data = self._get_paginated_posts()
 
-        context.update(
-            {
-                "page": self.PAGE_TITLE,
-                "partial": self.is_htmx_request(),
-                **pagination_data,
-            }
-        )
+        try:
+            pagination_data = self._get_paginated_posts()
+            context.update(
+                {
+                    "page": self.PAGE_TITLE,
+                    "partial": self.is_htmx_request(),
+                    **pagination_data,
+                }
+            )
+        except Exception as e:
+            logger.error(f"Error in HomeView context: {e}", exc_info=True)
+            context.update(
+                {
+                    "page": self.PAGE_TITLE,
+                    "partial": self.is_htmx_request(),
+                    "posts": [],
+                    "next_page": None,
+                    "page_start_index": 0,
+                    "error": "Une erreur est survenue lors du chargement des posts.",
+                }
+            )
 
         return context
 
@@ -70,8 +171,10 @@ class HomeView(
         )
 
         try:
-            return int(page_number)
+            page = int(page_number)
+            return page if page > 0 else self.DEFAULT_PAGE_NUMBER
         except (TypeError, ValueError):
+            logger.warning(f"Invalid page number: {page_number}")
             return self.DEFAULT_PAGE_NUMBER
 
     def _get_paginated_posts(self):
@@ -82,7 +185,7 @@ class HomeView(
             dict: Dictionary containing posts, next_page, and page_start_index
         """
         feed = self._get_combined_feed()
-        paginator = Paginator(feed, self.PAGINATE_BY)
+        paginator = Paginator(feed, self.PAGINATE_BY, orphans=self.ORPHANS)
         page_number = self._get_page_number()
         posts_page = paginator.get_page(page_number)
 
@@ -94,23 +197,16 @@ class HomeView(
             ),
         }
 
-    def _get_posts_queryset(self):
-        """
-        Get the base queryset for posts.
-
-        Returns:
-            QuerySet: Posts ordered by creation date
-        """
-        return Post.objects.order_by("-created_at")
-
     def _get_reposts_queryset(self):
         """
-        Get the base queryset for reposts with related data.
+        Get the base queryset for reposts with optimized related data.
 
         Returns:
-            QuerySet: Reposts with post and user data
+            QuerySet: Optimized reposts queryset
         """
-        return Repost.objects.select_related("post", "user")
+        return Repost.objects.select_related(
+            "post__author", "user"
+        ).prefetch_related("post__likes", "post__bookmarks", "post__comments")
 
     def _prepare_reposted_posts(self):
         """
@@ -138,14 +234,21 @@ class HomeView(
         Returns:
             list: Combined and sorted feed of posts and reposts
         """
-        posts = self._get_posts_queryset()
-        reposted_posts = self._prepare_reposted_posts()
+        # Use cache for feed if available
+        cache_key = f"home_feed_{self.request.user.id}_{self.ordering}"
+        feed = cache.get(cache_key)
 
-        feed = sorted(
-            chain(posts, reposted_posts),
-            key=attrgetter("created_at"),
-            reverse=True,
-        )
+        if feed is None:
+            posts = self.get_posts()
+            reposted_posts = self._prepare_reposted_posts()
+
+            feed = sorted(
+                chain(posts, reposted_posts),
+                key=attrgetter("created_at"),
+                reverse=True,
+            )
+            # Cache for 2 minutes
+            cache.set(cache_key, feed, 120)
 
         return feed
 
@@ -178,7 +281,10 @@ class HomeView(
 
 
 class ExploreView(
-    LoginRequiredMixin, PostOrderingMixin, HTMXTemplateMixin, TemplateView
+    BasePostView,
+    LoginRequiredMixin,
+    HTMXTemplateMixin,
+    TemplateView,
 ):
     """
     Explore view displaying all posts.
@@ -205,28 +311,33 @@ class ExploreView(
         """
         context = super().get_context_data(**kwargs)
 
-        context.update(
-            {
-                "page": self.PAGE_TITLE,
-                "partial": self.is_htmx_request(),
-                "posts": self._get_posts(),
-            }
-        )
+        try:
+            context.update(
+                {
+                    "page": self.PAGE_TITLE,
+                    "partial": self.is_htmx_request(),
+                    "posts": self.get_posts(),
+                }
+            )
+        except Exception as e:
+            logger.error(f"Error in ExploreView: {e}", exc_info=True)
+            context.update(
+                {
+                    "page": self.PAGE_TITLE,
+                    "partial": self.is_htmx_request(),
+                    "posts": [],
+                    "error": "Une erreur est survenue.",
+                }
+            )
 
         return context
 
-    def _get_posts(self):
-        """
-        Get all posts ordered by the configured ordering.
-
-        Returns:
-            QuerySet: Posts ordered by self.ordering
-        """
-        return Post.objects.order_by(self.ordering)
-
 
 class UploadView(
-    LoginRequiredMixin, PostOrderingMixin, HTMXTemplateMixin, FormView
+    LoginRequiredMixin,
+    BasePostView,
+    HTMXTemplateMixin,
+    FormView,
 ):
     """
     Upload view for creating new posts.
@@ -248,6 +359,9 @@ class UploadView(
     # Template for HTMX response after successful upload
     HTMX_SUCCESS_TEMPLATE = "posts/partials/_home.html"
 
+    # Rate limiting
+    MAX_POSTS_PER_HOUR = 20
+
     def get_context_data(self, **kwargs):
         """
         Add page title to the template context.
@@ -267,12 +381,10 @@ class UploadView(
         )
         return context
 
+    @transaction.atomic
     def form_valid(self, form):
         """
-        Handle valid form submission.
-
-        Saves the post with the current user as author and returns
-        either an HTMX partial response or a standard redirect.
+        Handle valid form submission with rate limiting and transaction.
 
         Args:
             form: Valid form instance
@@ -280,15 +392,44 @@ class UploadView(
         Returns:
             HttpResponse: HTMX partial or redirect response
         """
-        # Save post with author
-        post = self._save_post(form)
+        # Check rate limit using parent method
+        if not super().check_rate_limit(
+            self.request,
+            "post_creation",
+            limit=self.MAX_POSTS_PER_HOUR,
+            window=3600,
+        ):
+            if self.is_htmx_request():
+                return HttpResponseForbidden(
+                    "Limite de posts atteinte. Veuillez réessayer plus tard."
+                )
+            form.add_error(None, "Trop de posts créés. Attendez un peu.")
+            return self.form_invalid(form)
 
-        # Handle HTMX request
-        if self._is_htmx_request():
-            return self._render_htmx_response()
+        try:
+            # Save post with author
+            post = self._save_post(form)
+            logger.info(
+                f"Post created: {post.uuid} by user {self.request.user.id}"
+            )
 
-        # Standard redirect
-        return super().form_valid(form)
+            # Invalidate cache
+            cache_key = f"home_feed_{self.request.user.id}_{self.ordering}"
+            cache.delete(cache_key)
+
+            # Handle HTMX request
+            if self.is_htmx_request():
+                return self._render_htmx_response()
+
+            # Standard redirect
+            return super().form_valid(form)
+
+        except Exception as e:
+            logger.error(f"Error creating post: {e}", exc_info=True)
+            form.add_error(
+                None, "Une erreur est survenue lors de la création du post."
+            )
+            return self.form_invalid(form)
 
     def _save_post(self, form):
         """
@@ -312,20 +453,13 @@ class UploadView(
         Returns:
             HttpResponse: Rendered HTMX partial
         """
-        context = {"posts": self._get_posts()}
-        return render(self.request, self.HTMX_SUCCESS_TEMPLATE, context)
-
-    def _get_posts(self):
-        """
-        Get all posts ordered by the configured ordering.
-
-        Returns:
-            QuerySet: Posts ordered by self.ordering
-        """
-        return Post.objects.order_by(self.ordering)
+        context = {"posts": self.get_posts()}
+        return render(
+            self.request, self.HTMX_SUCCESS_TEMPLATE, context=context
+        )
 
 
-class PostPageView(PostOrderingMixin, HTMXTemplateMixin, TemplateView):
+class PostPageView(BasePostView, HTMXTemplateMixin, TemplateView):
     """
     Post detail view with navigation.
 
@@ -340,7 +474,8 @@ class PostPageView(PostOrderingMixin, HTMXTemplateMixin, TemplateView):
 
     # Configuration
     PAGE_TITLE = "Post Page"
-    REDIRECT_URL = "posts:home"
+    MAX_COMMENT_LENGTH = 5000
+    MAX_COMMENTS_PER_MINUTE = 10
 
     def get(self, request, *args, **kwargs):
         """
@@ -356,30 +491,32 @@ class PostPageView(PostOrderingMixin, HTMXTemplateMixin, TemplateView):
         """
         # Validate post UUID
         if not self._has_valid_pk():
-            return self._redirect_to_home()
+            return self.redirect_to_home()
 
-        # Get post and navigation data
-        post = self._get_post()
-        navigation_data = self._get_navigation_data(post)
+        try:
+            # Get post and navigation data
+            post = self._get_post()
+            navigation_data = self._get_navigation_data(post=post)
 
-        # Prepare context
-        context = self.get_context_data(post=post, **navigation_data)
+            # Prepare context
+            context = self.get_context_data(post=post, **navigation_data)
 
-        # Render appropriate template
-        return self._render_response(request, context)
+            # Render appropriate template
+            return self._render_response(request, context=context)
 
+        except Exception as e:
+            logger.error(f"Error in PostPageView GET: {e}", exc_info=True)
+            return self.redirect_to_home()
+
+    @transaction.atomic
     def post(self, request, *args, **kwargs):
         """
         Handle POST requests for adding a new comment to a post.
 
-        Processes form data submitted via POST to create a new comment
-        associated with the specified post. Supports HTMX partial rendering
-        to refresh only the comment section dynamically.
-
         Args:
-            request: The HTTP request object containing form data.
-            *args: Additional positional arguments.
-            **kwargs: Additional keyword arguments (includes 'pk').
+            request: The HTTP request object
+            *args: Additional positional arguments
+            **kwargs: Additional keyword arguments (includes 'pk')
 
         Returns:
             TemplateResponse: Rendered comment loop partial with the updated
@@ -389,16 +526,46 @@ class PostPageView(PostOrderingMixin, HTMXTemplateMixin, TemplateView):
         if not pk:
             return redirect(self.REDIRECT_URL)
 
-        post = get_object_or_404(Post, uuid=pk)
-        body = request.POST.get("comment")
+        # Check rate limit
+        if not self.check_rate_limit(
+            request,
+            "comment_creation",
+            limit=self.MAX_COMMENTS_PER_MINUTE,
+            window=60,
+        ):
+            return HttpResponseForbidden(
+                "Trop de commentaires. Veuillez ralentir."
+            )
 
-        if body:
-            Comment.objects.create(author=request.user, post=post, body=body)
+        try:
+            post = self.get_post(pk)
+            body = request.POST.get("comment", "").strip()
 
-        # Limited context to refresh comments section via HTMX
-        context = {"post": post}
+            # Validate comment
+            if body and len(body) <= self.MAX_COMMENT_LENGTH:
+                Comment.objects.create(
+                    author=request.user, post=post, body=body
+                )
+                logger.info(
+                    f"Comment created on post {pk} by user {request.user.id}"
+                )
 
-        return TemplateResponse(request, self.comment_partial, context)
+                # Invalidate cache
+                cache.delete(f"post_comments_{pk}")
+            elif len(body) > self.MAX_COMMENT_LENGTH:
+                logger.warning(f"Comment too long: {len(body)} chars")
+
+            # Limited context to refresh comments section via HTMX
+            context = {"post": post}
+            return TemplateResponse(
+                request, self.comment_partial, context=context
+            )
+
+        except Exception as e:
+            logger.error(f"Error creating comment: {e}", exc_info=True)
+            return HttpResponse(
+                "Erreur lors de la création du commentaire", status=500
+            )
 
     def get_context_data(self, **kwargs):
         """
@@ -428,26 +595,17 @@ class PostPageView(PostOrderingMixin, HTMXTemplateMixin, TemplateView):
         """
         return bool(self.kwargs.get("pk"))
 
-    def _redirect_to_home(self):
-        """
-        Redirect to home page.
-
-        Returns:
-            HttpResponseRedirect: Redirect to home
-        """
-        return redirect(self.REDIRECT_URL)
-
     def _get_post(self):
         """
         Get the post object or raise 404.
 
         Returns:
-            Post: Post instance
+            Post: Post instance with optimized queries
 
         Raises:
             Http404: If post doesn't exist
         """
-        return get_object_or_404(Post, uuid=self.kwargs["pk"])
+        return self.get_post(self.kwargs["pk"])
 
     def _get_navigation_data(self, post):
         """
@@ -460,10 +618,12 @@ class PostPageView(PostOrderingMixin, HTMXTemplateMixin, TemplateView):
             dict: Dictionary with author_posts, prev_post, next_post
         """
         if not post.author:
-            return self._get_empty_navigation(post)
+            return self._get_empty_navigation(post=post)
 
-        author_posts = self._get_author_posts(post.author)
-        prev_post, next_post = self._get_adjacent_posts(post, author_posts)
+        author_posts = self._get_author_posts(author=post.author)
+        prev_post, next_post = self._get_adjacent_posts(
+            current_post=post, author_posts=author_posts
+        )
 
         return {
             "author_posts": author_posts,
@@ -489,7 +649,7 @@ class PostPageView(PostOrderingMixin, HTMXTemplateMixin, TemplateView):
 
     def _get_author_posts(self, author):
         """
-        Get all posts from the same author.
+        Get all posts from the same author with caching.
 
         Args:
             author: Author user instance
@@ -497,7 +657,18 @@ class PostPageView(PostOrderingMixin, HTMXTemplateMixin, TemplateView):
         Returns:
             list: List of posts ordered by self.ordering
         """
-        return list(Post.objects.filter(author=author).order_by(self.ordering))
+        cache_key = f"author_posts_{author.id}_{self.ordering}"
+        posts = cache.get(cache_key)
+
+        if posts is None:
+            posts = list(
+                Post.objects.filter(author=author)
+                .select_related("author")
+                .order_by(self.ordering)
+            )
+            cache.set(cache_key, posts, 300)  # Cache 5 minutes
+
+        return posts
 
     def _get_adjacent_posts(self, current_post, author_posts):
         """
@@ -538,10 +709,37 @@ class PostPageView(PostOrderingMixin, HTMXTemplateMixin, TemplateView):
             if self.is_htmx_request()
             else self.template_name
         )
-        return TemplateResponse(request, template, context)
+        return TemplateResponse(request, template=template, context=context)
 
 
-class PostEditView(LoginRequiredMixin, HTMXTemplateMixin, TemplateView):
+class AuthorRequiredMixin:
+    """Mixin to ensure user is the author of the post."""
+
+    def dispatch(self, request, *args, **kwargs):
+        """Check if user is the post author before processing request."""
+        try:
+            self.post_obj = self._get_post()
+        except Exception as e:
+            logger.error(f"Error fetching post: {e}", exc_info=True)
+            return redirect(self.REDIRECT_URL)
+
+        if not self._is_post_author(request.user):
+            logger.warning(
+                f"Unauthorized edit attempt by user {request.user.id} "
+                f"on post {self.post_obj.uuid}"
+            )
+            return redirect(self.REDIRECT_URL)
+
+        return super().dispatch(request, *args, **kwargs)
+
+
+class PostEditView(
+    AuthorRequiredMixin,
+    BasePostView,
+    LoginRequiredMixin,
+    HTMXTemplateMixin,
+    TemplateView,
+):
     """
     Post edit view for updating or deleting posts.
 
@@ -553,28 +751,8 @@ class PostEditView(LoginRequiredMixin, HTMXTemplateMixin, TemplateView):
     partial_template = "posts/partials/_post_edit.html"
 
     # URL configuration
-    REDIRECT_HOME_URL_NAME = "posts:home"
     REDIRECT_POST_URL_NAME = "posts:post_page"
     REDIRECT_PROFILE_URL_NAME = "users:profile"
-
-    def dispatch(self, request, *args, **kwargs):
-        """
-        Check permissions before processing the request.
-
-        Args:
-            request: The HTTP request object
-            *args: Additional positional arguments
-            **kwargs: Additional keyword arguments
-
-        Returns:
-            HttpResponse: Redirect if unauthorized, otherwise continues
-        """
-        self.post_obj = self._get_post()
-
-        if not self._is_post_author(request.user):
-            return self._redirect_unauthorized()
-
-        return super().dispatch(request, *args, **kwargs)
 
     def get(self, request, *args, **kwargs):
         """
@@ -586,18 +764,24 @@ class PostEditView(LoginRequiredMixin, HTMXTemplateMixin, TemplateView):
         Returns:
             HttpResponse: Rendered edit form or redirect after deletion
         """
-        # Handle post deletion
-        if self.is_delete_request(request):
-            return self._handle_delete(request)
+        try:
+            # Handle post deletion
+            if self._is_delete_request(request):
+                return self._handle_delete(request)
 
-        # Render edit form
-        context = self.get_context_data()
+            # Render edit form
+            context = self.get_context_data()
 
-        if self.is_htmx_request(request):
-            return self.render_to_response(context)
+            if self.is_htmx_request():
+                return self.render_to_response(context=context)
 
-        return self._redirect_to_post()
+            return self._redirect_to_post()
 
+        except Exception as e:
+            logger.error(f"Error in PostEditView GET: {e}", exc_info=True)
+            return self.redirect_to_home()
+
+    @transaction.atomic
     def post(self, request, *args, **kwargs):
         """
         Handle POST requests for post updates.
@@ -608,12 +792,17 @@ class PostEditView(LoginRequiredMixin, HTMXTemplateMixin, TemplateView):
         Returns:
             HttpResponse: Redirect on success or form with errors
         """
-        form = self._get_form(data=request.POST)
+        try:
+            form = self._get_form(data=request.POST)
 
-        if form.is_valid():
-            return self._form_valid(form)
+            if form.is_valid():
+                return self._form_valid(form=form)
 
-        return self._form_invalid(request, form)
+            return self._form_invalid(request, form=form)
+
+        except Exception as e:
+            logger.error(f"Error updating post: {e}", exc_info=True)
+            return self.redirect_to_home()
 
     def get_context_data(self, **kwargs):
         """
@@ -658,15 +847,6 @@ class PostEditView(LoginRequiredMixin, HTMXTemplateMixin, TemplateView):
         """
         return self.post_obj.author == user
 
-    def _redirect_unauthorized(self):
-        """
-        Redirect unauthorized users to home.
-
-        Returns:
-            HttpResponseRedirect: Redirect to home page
-        """
-        return redirect(self.REDIRECT_HOME_URL_NAME)
-
     def _is_delete_request(self, request):
         """
         Check if this is a delete request.
@@ -689,8 +869,16 @@ class PostEditView(LoginRequiredMixin, HTMXTemplateMixin, TemplateView):
         Returns:
             HttpResponseRedirect: Redirect to user profile
         """
+        username = request.user.username
+        post_uuid = self.post_obj.uuid
         self.post_obj.delete()
-        return redirect(self.REDIRECT_PROFILE_URL_NAME, request.user.username)
+
+        # Invalidate caches
+        cache.delete(f"home_feed_{request.user.id}_{self.ordering}")
+        cache.delete(f"author_posts_{request.user.id}_{self.ordering}")
+
+        logger.info(f"Post {post_uuid} deleted by user {request.user.id}")
+        return redirect(self.REDIRECT_PROFILE_URL_NAME, username)
 
     def _get_form(self, data=None):
         """
@@ -715,6 +903,14 @@ class PostEditView(LoginRequiredMixin, HTMXTemplateMixin, TemplateView):
             HttpResponseRedirect: Redirect to post page
         """
         form.save()
+
+        # Invalidate caches
+        cache.delete(f"home_feed_{self.request.user.id}_{self.ordering}")
+        cache.delete(f"author_posts_{self.post_obj.author.id}_{self.ordering}")
+
+        logger.info(
+            f"Post {self.post_obj.uuid} updated by user {self.request.user.id}"
+        )
         return self._redirect_to_post()
 
     def _form_invalid(self, request, form):
@@ -730,8 +926,8 @@ class PostEditView(LoginRequiredMixin, HTMXTemplateMixin, TemplateView):
         """
         context = self.get_context_data(form=form)
 
-        if self._is_htmx_request(request):
-            return self.render_to_response(context)
+        if self.is_htmx_request():
+            return self.render_to_response(context=context)
 
         return self._redirect_to_post()
 
@@ -745,13 +941,16 @@ class PostEditView(LoginRequiredMixin, HTMXTemplateMixin, TemplateView):
         return redirect(self.REDIRECT_POST_URL_NAME, self.post_obj.uuid)
 
 
-class PostLikeView(LoginRequiredMixin, HTMXTemplateMixin, View):
+class PostLikeView(BasePostView, LoginRequiredMixin, HTMXTemplateMixin, View):
     """
     Post like/unlike view.
 
     Handles toggling likes on posts with HTMX support for different
     rendering contexts (home page, post page). Updates like counts
     and returns appropriate partials.
+
+    Note: Uses GET for backwards compatibility with existing templates.
+    TODO: Migrate to POST for better security practices.
     """
 
     # URL configuration
@@ -760,6 +959,9 @@ class PostLikeView(LoginRequiredMixin, HTMXTemplateMixin, View):
     # Template configuration
     TEMPLATE_LIKE_HOME = "posts/partials/_like_home.html"
     TEMPLATE_LIKE_POSTPAGE = "posts/partials/_like_postpage.html"
+
+    # Rate limiting
+    MAX_LIKES_PER_MINUTE = 30
 
     def get(self, request, pk):
         """
@@ -772,37 +974,42 @@ class PostLikeView(LoginRequiredMixin, HTMXTemplateMixin, View):
         Returns:
             HttpResponse: Rendered partial or redirect
         """
-        post = self._get_post(pk)
+        # Check rate limit
+        if not super().check_rate_limit(
+            request, "like_action", limit=self.MAX_LIKES_PER_MINUTE, window=60
+        ):
+            return HttpResponseForbidden("Trop de likes. Veuillez ralentir.")
 
-        # Toggle like if HTMX request
-        if self.is_htmx_request(request):
-            self._toggle_like(post, request.user)
+        try:
+            # Récupérer le post avec l'auteur
+            post = get_object_or_404(
+                Post.objects.select_related("author"), uuid=pk
+            )
 
-        # Prepare context
-        context = self._get_context_data(post)
+            # Toggle like if HTMX request
+            if self.is_htmx_request():
+                self._toggle_like(post=post, user=request.user)
+                # Rafraîchir le post depuis la DB après le toggle
+                post.refresh_from_db()
 
-        # Render appropriate template based on source
-        if request.GET.get("home"):
-            return self._render_home_partial(request, context)
+            # Prepare context APRÈS le toggle pour avoir les bonnes valeurs
+            context = self._get_context_data(post=post)
 
-        if request.GET.get("postpage"):
-            return self._render_postpage_partial(request, context)
+            # Render appropriate template based on source
+            if request.GET.get("home"):
+                return self._render_home_partial(request, context=context)
 
-        # Fallback redirect
-        return self._redirect_to_post(pk)
+            if request.GET.get("postpage"):
+                return self._render_postpage_partial(request, context=context)
 
-    def _get_post(self, pk):
-        """
-        Get the post object or raise 404.
+            # Fallback redirect
+            return self._redirect_to_post(pk)
 
-        Args:
-            pk: Post UUID
+        except Exception as e:
+            logger.error(f"Error in PostLikeView: {e}", exc_info=True)
+            return HttpResponse("Erreur", status=500)
 
-        Returns:
-            Post: Post instance
-        """
-        return get_object_or_404(Post, uuid=pk)
-
+    @transaction.atomic
     def _toggle_like(self, post, user):
         """
         Toggle like status for the user on the post.
@@ -813,8 +1020,14 @@ class PostLikeView(LoginRequiredMixin, HTMXTemplateMixin, View):
         """
         if post.likes.filter(id=user.id).exists():
             post.likes.remove(user)
+            logger.info(f"User {user.id} unliked post {post.uuid}")
         else:
             post.likes.add(user)
+            logger.info(f"User {user.id} liked post {post.uuid}")
+
+        # Invalidate author likes cache
+        if post.author:
+            cache.delete(f"author_likes_{post.author.id}")
 
     def _get_context_data(self, post):
         """
@@ -826,7 +1039,13 @@ class PostLikeView(LoginRequiredMixin, HTMXTemplateMixin, View):
         Returns:
             dict: Context dictionary
         """
-        profile_user_likes = self._get_author_total_likes(post.author)
+        # Calculer exactement comme dans la fonction originale
+        profile_user_likes = 0
+        if post.author:
+            aggregate_result = post.author.posts.aggregate(
+                total_likes=Count("likes")
+            )["total_likes"]
+            profile_user_likes = aggregate_result or 0
 
         return {
             "post": post,
@@ -835,7 +1054,7 @@ class PostLikeView(LoginRequiredMixin, HTMXTemplateMixin, View):
 
     def _get_author_total_likes(self, author):
         """
-        Get total likes for all posts by the author.
+        Get total likes for all posts by the author with caching.
 
         Args:
             author: User instance
@@ -843,9 +1062,19 @@ class PostLikeView(LoginRequiredMixin, HTMXTemplateMixin, View):
         Returns:
             int: Total number of likes across all author's posts
         """
-        return author.posts.aggregate(total_likes=Count("likes"))[
-            "total_likes"
-        ]
+        if not author:
+            return 0
+
+        cache_key = f"author_likes_{author.id}"
+        likes = cache.get(cache_key)
+
+        if likes is None:
+            likes = author.posts.aggregate(total_likes=Count("likes"))[
+                "total_likes"
+            ]
+            cache.set(cache_key, likes, 300)  # Cache 5 minutes
+
+        return likes or 0
 
     def _render_home_partial(self, request, context):
         """
@@ -858,7 +1087,7 @@ class PostLikeView(LoginRequiredMixin, HTMXTemplateMixin, View):
         Returns:
             HttpResponse: Rendered home partial
         """
-        return render(request, self.TEMPLATE_LIKE_HOME, context)
+        return render(request, self.TEMPLATE_LIKE_HOME, context=context)
 
     def _render_postpage_partial(self, request, context):
         """
@@ -871,7 +1100,7 @@ class PostLikeView(LoginRequiredMixin, HTMXTemplateMixin, View):
         Returns:
             HttpResponse: Rendered post page partial
         """
-        return render(request, self.TEMPLATE_LIKE_POSTPAGE, context)
+        return render(request, self.TEMPLATE_LIKE_POSTPAGE, context=context)
 
     def _redirect_to_post(self, pk):
         """
@@ -886,12 +1115,16 @@ class PostLikeView(LoginRequiredMixin, HTMXTemplateMixin, View):
         return redirect(self.REDIRECT_POST_URL_NAME, pk)
 
 
-class BookmarkPostView(LoginRequiredMixin, HTMXTemplateMixin, View):
+class BookmarkPostView(
+    BasePostView, LoginRequiredMixin, HTMXTemplateMixin, View
+):
     """
     Bookmark/unbookmark post view.
 
     Handles toggling bookmarks on posts with HTMX support for different
     rendering contexts (home page, post page).
+
+    Note: Uses GET for backwards compatibility with existing templates.
     """
 
     # URL configuration
@@ -900,6 +1133,9 @@ class BookmarkPostView(LoginRequiredMixin, HTMXTemplateMixin, View):
     # Template configuration
     TEMPLATE_BOOKMARK_HOME = "posts/partials/_bookmark_home.html"
     TEMPLATE_BOOKMARK_POSTPAGE = "posts/partials/_bookmark_postpage.html"
+
+    # Rate limiting
+    MAX_BOOKMARKS_PER_MINUTE = 30
 
     def get(self, request, pk):
         """
@@ -912,37 +1148,42 @@ class BookmarkPostView(LoginRequiredMixin, HTMXTemplateMixin, View):
         Returns:
             HttpResponse: Rendered partial or redirect
         """
-        post = self._get_post(pk)
+        # Check rate limit
+        if not super().check_rate_limit(
+            request,
+            "bookmark_action",
+            limit=self.MAX_BOOKMARKS_PER_MINUTE,
+            window=60,
+        ):
+            return HttpResponseForbidden(
+                "Trop de bookmarks. Veuillez ralentir."
+            )
 
-        # Toggle bookmark if HTMX request
-        if self.is_htmx_request():
-            self._toggle_bookmark(post, request.user)
+        try:
+            post = self.get_post(pk=pk)
 
-        # Prepare context
-        context = self._get_context_data(post)
+            # Toggle bookmark if HTMX request
+            if self.is_htmx_request():
+                self._toggle_bookmark(post=post, user=request.user)
 
-        # Render appropriate template based on source
-        if request.GET.get("home"):
-            return self._render_home_partial(request, context)
+            # Prepare context
+            context = self._get_context_data(post=post)
 
-        if request.GET.get("postpage"):
-            return self._render_postpage_partial(request, context)
+            # Render appropriate template based on source
+            if request.GET.get("home"):
+                return self._render_home_partial(request, context=context)
 
-        # Fallback redirect
-        return self._redirect_to_post(pk)
+            if request.GET.get("postpage"):
+                return self._render_postpage_partial(request, context=context)
 
-    def _get_post(self, pk):
-        """
-        Get the post object or raise 404.
+            # Fallback redirect
+            return self._redirect_to_post(pk=pk)
 
-        Args:
-            pk: Post UUID
+        except Exception as e:
+            logger.error(f"Error in BookmarkPostView: {e}", exc_info=True)
+            return HttpResponse("Erreur", status=500)
 
-        Returns:
-            Post: Post instance
-        """
-        return get_object_or_404(Post, uuid=pk)
-
+    @transaction.atomic
     def _toggle_bookmark(self, post, user):
         """
         Toggle bookmark status for the user on the post.
@@ -953,8 +1194,12 @@ class BookmarkPostView(LoginRequiredMixin, HTMXTemplateMixin, View):
         """
         if post.bookmarks.filter(id=user.id).exists():
             post.bookmarks.remove(user)
+            logger.info(
+                f"User {user.id} removed bookmark from post {post.uuid}"
+            )
         else:
             post.bookmarks.add(user)
+            logger.info(f"User {user.id} bookmarked post {post.uuid}")
 
     def _get_context_data(self, post):
         """
@@ -979,7 +1224,7 @@ class BookmarkPostView(LoginRequiredMixin, HTMXTemplateMixin, View):
         Returns:
             HttpResponse: Rendered home partial
         """
-        return render(request, self.TEMPLATE_BOOKMARK_HOME, context)
+        return render(request, self.TEMPLATE_BOOKMARK_HOME, context=context)
 
     def _render_postpage_partial(self, request, context):
         """
@@ -992,7 +1237,9 @@ class BookmarkPostView(LoginRequiredMixin, HTMXTemplateMixin, View):
         Returns:
             HttpResponse: Rendered post page partial
         """
-        return render(request, self.TEMPLATE_BOOKMARK_POSTPAGE, context)
+        return render(
+            request, self.TEMPLATE_BOOKMARK_POSTPAGE, context=context
+        )
 
     def _redirect_to_post(self, pk):
         """
@@ -1007,7 +1254,7 @@ class BookmarkPostView(LoginRequiredMixin, HTMXTemplateMixin, View):
         return redirect(self.REDIRECT_POST_URL_NAME, pk)
 
 
-class CommentView(LoginRequiredMixin, HTMXTemplateMixin, View):
+class CommentView(BasePostView, LoginRequiredMixin, HTMXTemplateMixin, View):
     """
     Comment reply view.
 
@@ -1015,13 +1262,13 @@ class CommentView(LoginRequiredMixin, HTMXTemplateMixin, View):
     partials. Requires HTMX requests.
     """
 
-    # URL configuration
-    REDIRECT_HOME_URL_NAME = "posts:home"
-
     # Template configuration
     TEMPLATE_VIEW_REPLIES = "posts/partials/comments/_button_view_replies.html"
     TEMPLATE_REPLY_FORM = "posts/partials/comments/_form_add_reply.html"
     TEMPLATE_REPLY_LOOP = "posts/partials/comments/_reply_loop.html"
+
+    # Rate limiting
+    MAX_REPLIES_PER_MINUTE = 10
 
     def get(self, request, pk):
         """
@@ -1036,22 +1283,32 @@ class CommentView(LoginRequiredMixin, HTMXTemplateMixin, View):
         """
         # HTMX required
         if not self.is_htmx_request():
-            return self._redirect_to_home()
+            return self.redirect_to_home()
 
-        comment = self._get_comment(pk)
-        parent_comment = self._get_parent_comment(comment)
+        try:
+            comment = self._get_comment(pk=pk)
+            parent_comment = self._get_parent_comment(comment=comment)
 
-        context = self._get_context_data(comment, parent_comment)
+            context = self._get_context_data(
+                comment=comment, parent_comment=parent_comment
+            )
 
-        # Render appropriate template based on action
-        if request.GET.get("hide_replies"):
-            return self._render_view_replies_button(request, context)
+            # Render appropriate template based on action
+            if request.GET.get("hide_replies"):
+                return self._render_view_replies_button(
+                    request, context=context
+                )
 
-        if request.GET.get("reply_form"):
-            return self._render_reply_form(request, context)
+            if request.GET.get("reply_form"):
+                return self._render_reply_form(request, context=context)
 
-        return self._render_reply_loop(request, context)
+            return self._render_reply_loop(request, context=context)
 
+        except Exception as e:
+            logger.error(f"Error in CommentView GET: {e}", exc_info=True)
+            return HttpResponse("Erreur", status=500)
+
+    @transaction.atomic
     def post(self, request, pk):
         """
         Handle POST requests for creating replies.
@@ -1065,34 +1322,46 @@ class CommentView(LoginRequiredMixin, HTMXTemplateMixin, View):
         """
         # HTMX required
         if not self.is_htmx_request():
-            return self._redirect_to_home()
+            return self.redirect_to_home()
 
-        comment = self._get_comment(pk)
-        parent_comment = self._get_parent_comment(comment)
-        parent_reply = self._get_parent_reply(comment)
-
-        # Create reply if body is provided
-        body = request.POST.get("reply")
-        if body:
-            self._create_reply(
-                user=request.user,
-                comment=comment,
-                parent_comment=parent_comment,
-                parent_reply=parent_reply,
-                body=body,
+        # Check rate limit
+        if not super().check_rate_limit(
+            request,
+            "reply_creation",
+            limit=self.MAX_REPLIES_PER_MINUTE,
+            window=60,
+        ):
+            return HttpResponseForbidden(
+                "Trop de réponses. Veuillez ralentir."
             )
 
-        context = self._get_context_data(comment, parent_comment)
-        return self._render_reply_loop(request, context)
+        try:
+            comment = self._get_comment(pk=pk)
+            parent_comment = self._get_parent_comment(comment=comment)
+            parent_reply = self._get_parent_reply(comment=comment)
 
-    def _redirect_to_home(self):
-        """
-        Redirect to home page.
+            # Create reply if body is provided
+            body = request.POST.get("reply", "").strip()
+            if body and len(body) <= 5000:
+                self._create_reply(
+                    user=request.user,
+                    comment=comment,
+                    parent_comment=parent_comment,
+                    parent_reply=parent_reply,
+                    body=body,
+                )
+                logger.info(
+                    f"Reply created on comment {pk} by user {request.user.id}"
+                )
 
-        Returns:
-            HttpResponseRedirect: Redirect to home
-        """
-        return redirect(self.REDIRECT_HOME_URL_NAME)
+            context = self._get_context_data(
+                comment=comment, parent_comment=parent_comment
+            )
+            return self._render_reply_loop(request, context=context)
+
+        except Exception as e:
+            logger.error(f"Error creating reply: {e}", exc_info=True)
+            return HttpResponse("Erreur", status=500)
 
     def _get_comment(self, pk):
         """
@@ -1104,7 +1373,9 @@ class CommentView(LoginRequiredMixin, HTMXTemplateMixin, View):
         Returns:
             Comment: Comment instance
         """
-        return get_object_or_404(Comment, uuid=pk)
+        return get_object_or_404(
+            Comment.objects.select_related("author", "post"), uuid=pk
+        )
 
     def _get_parent_comment(self, comment):
         """
@@ -1182,7 +1453,7 @@ class CommentView(LoginRequiredMixin, HTMXTemplateMixin, View):
         Returns:
             HttpResponse: Rendered partial
         """
-        return render(request, self.TEMPLATE_VIEW_REPLIES, context)
+        return render(request, self.TEMPLATE_VIEW_REPLIES, context=context)
 
     def _render_reply_form(self, request, context):
         """
@@ -1195,7 +1466,7 @@ class CommentView(LoginRequiredMixin, HTMXTemplateMixin, View):
         Returns:
             HttpResponse: Rendered partial
         """
-        return render(request, self.TEMPLATE_REPLY_FORM, context)
+        return render(request, self.TEMPLATE_REPLY_FORM, context=context)
 
     def _render_reply_loop(self, request, context):
         """
@@ -1208,19 +1479,18 @@ class CommentView(LoginRequiredMixin, HTMXTemplateMixin, View):
         Returns:
             HttpResponse: Rendered partial
         """
-        return render(request, self.TEMPLATE_REPLY_LOOP, context)
+        return render(request, self.TEMPLATE_REPLY_LOOP, context=context)
 
 
-class CommentDeleteView(LoginRequiredMixin, HTMXTemplateMixin, View):
+class CommentDeleteView(
+    BasePostView, LoginRequiredMixin, HTMXTemplateMixin, View
+):
     """
     Comment deletion view.
 
     Handles comment deletion with authorization check and HTMX
     out-of-band swap for updating comment count.
     """
-
-    # URL configuration
-    REDIRECT_HOME_URL_NAME = "posts:home"
 
     # Template configuration
     TEMPLATE_DELETE_FORM = "posts/partials/comments/_form_delete_comment.html"
@@ -1238,17 +1508,27 @@ class CommentDeleteView(LoginRequiredMixin, HTMXTemplateMixin, View):
         """
         # HTMX required
         if not self.is_htmx_request():
-            return self._redirect_to_home()
+            return self.redirect_to_home()
 
-        comment = self._get_comment(pk)
+        try:
+            comment = self._get_comment(pk=pk)
 
-        # Check authorization
-        if not self._is_comment_author(comment, request.user):
-            return HttpResponse()
+            # Check authorization
+            if not self._is_comment_author(comment=comment, user=request.user):
+                logger.warning(
+                    f"Unauthorized delete attempt by user {request.user.id} "
+                    f"on comment {pk}"
+                )
+                return HttpResponse()
 
-        context = self._get_context_data(comment)
-        return self._render_delete_form(request, context)
+            context = self._get_context_data(comment)
+            return self._render_delete_form(request, context=context)
 
+        except Exception as e:
+            logger.error(f"Error in CommentDeleteView GET: {e}", exc_info=True)
+            return HttpResponse("Erreur", status=500)
+
+    @transaction.atomic
     def post(self, request, pk):
         """
         Handle POST requests for deleting comments.
@@ -1262,28 +1542,29 @@ class CommentDeleteView(LoginRequiredMixin, HTMXTemplateMixin, View):
         """
         # HTMX required
         if not self.is_htmx_request():
-            return self._redirect_to_home()
+            return self.redirect_to_home()
 
-        comment = self._get_comment(pk)
+        try:
+            comment = self._get_comment(pk=pk)
 
-        # Check authorization
-        if not self._is_comment_author(comment, request.user):
-            return HttpResponse()
+            # Check authorization
+            if not self._is_comment_author(comment=comment, user=request.user):
+                logger.warning(
+                    f"Unauthorized delete by user {request.user.id} "
+                    f"on comment {pk}"
+                )
+                return HttpResponse()
 
-        # Delete comment and return OOB response
-        post = comment.post
-        comment.delete()
+            # Delete comment and return OOB response
+            post = comment.post
+            comment.delete()
+            logger.info(f"Comment {pk} deleted by user {request.user.id}")
 
-        return self._render_oob_response(post)
+            return self._render_oob_response(post=post)
 
-    def _redirect_to_home(self):
-        """
-        Redirect to home page.
-
-        Returns:
-            HttpResponseRedirect: Redirect to home
-        """
-        return redirect(self.REDIRECT_HOME_URL_NAME)
+        except Exception as e:
+            logger.error(f"Error deleting comment: {e}", exc_info=True)
+            return HttpResponse("Erreur", status=500)
 
     def _get_comment(self, pk):
         """
@@ -1295,7 +1576,9 @@ class CommentDeleteView(LoginRequiredMixin, HTMXTemplateMixin, View):
         Returns:
             Comment: Comment instance
         """
-        return get_object_or_404(Comment, uuid=pk)
+        return get_object_or_404(
+            Comment.objects.select_related("author", "post"), uuid=pk
+        )
 
     def _is_comment_author(self, comment, user):
         """
@@ -1333,7 +1616,7 @@ class CommentDeleteView(LoginRequiredMixin, HTMXTemplateMixin, View):
         Returns:
             HttpResponse: Rendered delete form
         """
-        return render(request, self.TEMPLATE_DELETE_FORM, context)
+        return render(request, self.TEMPLATE_DELETE_FORM, context=context)
 
     def _render_oob_response(self, post):
         """
@@ -1353,18 +1636,22 @@ class CommentDeleteView(LoginRequiredMixin, HTMXTemplateMixin, View):
         return HttpResponse(response)
 
 
-class LikeCommentView(LoginRequiredMixin, HTMXTemplateMixin, View):
+class LikeCommentView(
+    BasePostView, LoginRequiredMixin, HTMXTemplateMixin, View
+):
     """
     Comment like/unlike view.
 
     Handles toggling likes on comments. Requires HTMX requests.
     """
 
-    # URL configuration
-    REDIRECT_HOME_URL_NAME = "posts:home"
-
     # Template configuration
-    TEMPLATE_LIKE_BUTTON = "posts/partials/comments/_button_like_comment.html"
+    TEMPLATE_BUTTON_LIKE_COMMENT = (
+        "posts/partials/comments/_button_like_comment.html"
+    )
+
+    # Rate limiting
+    MAX_COMMENT_LIKES_PER_MINUTE = 30
 
     def get(self, request, pk):
         """
@@ -1379,22 +1666,27 @@ class LikeCommentView(LoginRequiredMixin, HTMXTemplateMixin, View):
         """
         # HTMX required
         if not self.is_htmx_request():
-            return self._redirect_to_home()
+            return self.redirect_to_home()
 
-        comment = self._get_comment(pk)
-        self._toggle_like(comment, request.user)
+        # Check rate limit
+        if not super().check_rate_limit(
+            request,
+            "comment_like",
+            limit=self.MAX_COMMENT_LIKES_PER_MINUTE,
+            window=60,
+        ):
+            return HttpResponseForbidden("Trop de likes. Veuillez ralentir.")
 
-        context = self._get_context_data(comment)
-        return self._render_like_button(request, context)
+        try:
+            comment = self._get_comment(pk=pk)
+            self._toggle_like(comment=comment, user=request.user)
 
-    def _redirect_to_home(self):
-        """
-        Redirect to home page.
+            context = self._get_context_data(comment=comment)
+            return self._render_like_button(request, context=context)
 
-        Returns:
-            HttpResponseRedirect: Redirect to home
-        """
-        return redirect(self.REDIRECT_HOME_URL_NAME)
+        except Exception as e:
+            logger.error(f"Error in LikeCommentView: {e}", exc_info=True)
+            return HttpResponse("Erreur", status=500)
 
     def _get_comment(self, pk):
         """
@@ -1406,8 +1698,11 @@ class LikeCommentView(LoginRequiredMixin, HTMXTemplateMixin, View):
         Returns:
             Comment: Comment instance
         """
-        return get_object_or_404(Comment, uuid=pk)
+        return get_object_or_404(
+            Comment.objects.prefetch_related("likes"), uuid=pk
+        )
 
+    @transaction.atomic
     def _toggle_like(self, comment, user):
         """
         Toggle like status for the user on the comment.
@@ -1418,8 +1713,10 @@ class LikeCommentView(LoginRequiredMixin, HTMXTemplateMixin, View):
         """
         if comment.likes.filter(id=user.id).exists():
             comment.likes.remove(user)
+            logger.info(f"User {user.id} unliked comment {comment.uuid}")
         else:
             comment.likes.add(user)
+            logger.info(f"User {user.id} liked comment {comment.uuid}")
 
     def _get_context_data(self, comment):
         """
@@ -1444,21 +1741,23 @@ class LikeCommentView(LoginRequiredMixin, HTMXTemplateMixin, View):
         Returns:
             HttpResponse: Rendered like button
         """
-        return render(request, self.TEMPLATE_LIKE_BUTTON, context)
+        return render(
+            request, self.TEMPLATE_BUTTON_LIKE_COMMENT, context=context
+        )
 
 
-class SharePostView(LoginRequiredMixin, View):
+class SharePostView(BasePostView, LoginRequiredMixin, View):
     """
     Post share/repost view.
 
     Handles reposting posts and displaying the share modal.
     """
 
-    # URL configuration
-    REDIRECT_HOME_URL_NAME = "posts:home"
-
     # Template configuration
-    TEMPLATE_SHARE_MODAL = "posts/partials/_post_share.html"
+    TEMPLATE_POST_SHARE_MODAL = "posts/partials/_post_share.html"
+
+    # Rate limiting
+    MAX_REPOSTS_PER_MINUTE = 10
 
     def get(self, request, pk):
         """
@@ -1471,29 +1770,39 @@ class SharePostView(LoginRequiredMixin, View):
         Returns:
             HttpResponse: Rendered share modal or redirect
         """
-        post = self._get_post(pk)
+        try:
+            post = self.get_post(pk=pk)
 
-        # Handle repost action
-        if request.GET.get("repost"):
-            self._toggle_repost(post, request.user)
-            return self._redirect_to_home()
+            # Handle repost action
+            if request.GET.get("repost"):
+                # Check rate limit
+                if not super().check_rate_limit(
+                    request,
+                    "repost_action",
+                    limit=self.MAX_REPOSTS_PER_MINUTE,
+                    window=60,
+                ):
+                    return HttpResponseForbidden(
+                        "Trop de reposts. Veuillez ralentir."
+                    )
 
-        # Show share modal
-        context = self._get_context_data(post)
-        return self._render_share_modal(request, context)
+                self._toggle_repost(post=post, user=request.user)
 
-    def _get_post(self, pk):
-        """
-        Get the post object or raise 404.
+                # Invalidate cache
+                cache_key = f"home_feed_{request.user.id}_{self.ordering}"
+                cache.delete(cache_key)
 
-        Args:
-            pk: Post UUID
+                return self.redirect_to_home()
 
-        Returns:
-            Post: Post instance
-        """
-        return get_object_or_404(Post, uuid=pk)
+            # Show share modal
+            context = self._get_context_data(post=post)
+            return self._render_share_modal(request, context=context)
 
+        except Exception as e:
+            logger.error(f"Error in SharePostView: {e}", exc_info=True)
+            return self.redirect_to_home()
+
+    @transaction.atomic
     def _toggle_repost(self, post, user):
         """
         Toggle repost status for the user on the post.
@@ -1504,17 +1813,10 @@ class SharePostView(LoginRequiredMixin, View):
         """
         if post.reposts.filter(id=user.id).exists():
             post.reposts.remove(user)
+            logger.info(f"User {user.id} removed repost of post {post.uuid}")
         else:
             post.reposts.add(user)
-
-    def _redirect_to_home(self):
-        """
-        Redirect to home page.
-
-        Returns:
-            HttpResponseRedirect: Redirect to home
-        """
-        return redirect(self.REDIRECT_HOME_URL_NAME)
+            logger.info(f"User {user.id} reposted post {post.uuid}")
 
     def _get_context_data(self, post):
         """
@@ -1539,4 +1841,4 @@ class SharePostView(LoginRequiredMixin, View):
         Returns:
             HttpResponse: Rendered share modal
         """
-        return render(request, self.TEMPLATE_SHARE_MODAL, context)
+        return render(request, self.TEMPLATE_POST_SHARE_MODAL, context=context)

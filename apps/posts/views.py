@@ -941,16 +941,13 @@ class PostEditView(
         return redirect(self.REDIRECT_POST_URL_NAME, self.post_obj.uuid)
 
 
-class PostLikeView(BasePostView, LoginRequiredMixin, HTMXTemplateMixin, View):
+class PostLikeView(LoginRequiredMixin, BasePostView, HTMXTemplateMixin, View):
     """
     Post like/unlike view.
 
     Handles toggling likes on posts with HTMX support for different
     rendering contexts (home page, post page). Updates like counts
     and returns appropriate partials.
-
-    Note: Uses GET for backwards compatibility with existing templates.
-    TODO: Migrate to POST for better security practices.
     """
 
     # URL configuration
@@ -959,9 +956,6 @@ class PostLikeView(BasePostView, LoginRequiredMixin, HTMXTemplateMixin, View):
     # Template configuration
     TEMPLATE_LIKE_HOME = "posts/partials/_like_home.html"
     TEMPLATE_LIKE_POSTPAGE = "posts/partials/_like_postpage.html"
-
-    # Rate limiting
-    MAX_LIKES_PER_MINUTE = 30
 
     def get(self, request, pk):
         """
@@ -974,42 +968,25 @@ class PostLikeView(BasePostView, LoginRequiredMixin, HTMXTemplateMixin, View):
         Returns:
             HttpResponse: Rendered partial or redirect
         """
-        # Check rate limit
-        if not super().check_rate_limit(
-            request, "like_action", limit=self.MAX_LIKES_PER_MINUTE, window=60
-        ):
-            return HttpResponseForbidden("Trop de likes. Veuillez ralentir.")
+        post = self.get_post(pk)
 
-        try:
-            # Récupérer le post avec l'auteur
-            post = get_object_or_404(
-                Post.objects.select_related("author"), uuid=pk
-            )
+        # Toggle like if HTMX request
+        if self.is_htmx_request():
+            self._toggle_like(post, request.user)
 
-            # Toggle like if HTMX request
-            if self.is_htmx_request():
-                self._toggle_like(post=post, user=request.user)
-                # Rafraîchir le post depuis la DB après le toggle
-                post.refresh_from_db()
+        # Prepare context
+        context = self._get_context_data(post)
 
-            # Prepare context APRÈS le toggle pour avoir les bonnes valeurs
-            context = self._get_context_data(post=post)
+        # Render appropriate template based on source
+        if request.GET.get("home"):
+            return self._render_home_partial(request, context)
 
-            # Render appropriate template based on source
-            if request.GET.get("home"):
-                return self._render_home_partial(request, context=context)
+        if request.GET.get("postpage"):
+            return self._render_postpage_partial(request, context)
 
-            if request.GET.get("postpage"):
-                return self._render_postpage_partial(request, context=context)
+        # Fallback redirect
+        return self._redirect_to_post(pk)
 
-            # Fallback redirect
-            return self._redirect_to_post(pk)
-
-        except Exception as e:
-            logger.error(f"Error in PostLikeView: {e}", exc_info=True)
-            return HttpResponse("Erreur", status=500)
-
-    @transaction.atomic
     def _toggle_like(self, post, user):
         """
         Toggle like status for the user on the post.
@@ -1020,14 +997,8 @@ class PostLikeView(BasePostView, LoginRequiredMixin, HTMXTemplateMixin, View):
         """
         if post.likes.filter(id=user.id).exists():
             post.likes.remove(user)
-            logger.info(f"User {user.id} unliked post {post.uuid}")
         else:
             post.likes.add(user)
-            logger.info(f"User {user.id} liked post {post.uuid}")
-
-        # Invalidate author likes cache
-        if post.author:
-            cache.delete(f"author_likes_{post.author.id}")
 
     def _get_context_data(self, post):
         """
@@ -1039,13 +1010,7 @@ class PostLikeView(BasePostView, LoginRequiredMixin, HTMXTemplateMixin, View):
         Returns:
             dict: Context dictionary
         """
-        # Calculer exactement comme dans la fonction originale
-        profile_user_likes = 0
-        if post.author:
-            aggregate_result = post.author.posts.aggregate(
-                total_likes=Count("likes")
-            )["total_likes"]
-            profile_user_likes = aggregate_result or 0
+        profile_user_likes = self._get_author_total_likes(post.author)
 
         return {
             "post": post,
@@ -1054,7 +1019,7 @@ class PostLikeView(BasePostView, LoginRequiredMixin, HTMXTemplateMixin, View):
 
     def _get_author_total_likes(self, author):
         """
-        Get total likes for all posts by the author with caching.
+        Get total likes for all posts by the author.
 
         Args:
             author: User instance
@@ -1062,19 +1027,9 @@ class PostLikeView(BasePostView, LoginRequiredMixin, HTMXTemplateMixin, View):
         Returns:
             int: Total number of likes across all author's posts
         """
-        if not author:
-            return 0
-
-        cache_key = f"author_likes_{author.id}"
-        likes = cache.get(cache_key)
-
-        if likes is None:
-            likes = author.posts.aggregate(total_likes=Count("likes"))[
-                "total_likes"
-            ]
-            cache.set(cache_key, likes, 300)  # Cache 5 minutes
-
-        return likes or 0
+        return author.posts.aggregate(total_likes=Count("likes"))[
+            "total_likes"
+        ]
 
     def _render_home_partial(self, request, context):
         """
@@ -1087,7 +1042,7 @@ class PostLikeView(BasePostView, LoginRequiredMixin, HTMXTemplateMixin, View):
         Returns:
             HttpResponse: Rendered home partial
         """
-        return render(request, self.TEMPLATE_LIKE_HOME, context=context)
+        return render(request, self.TEMPLATE_LIKE_HOME, context)
 
     def _render_postpage_partial(self, request, context):
         """
@@ -1100,7 +1055,7 @@ class PostLikeView(BasePostView, LoginRequiredMixin, HTMXTemplateMixin, View):
         Returns:
             HttpResponse: Rendered post page partial
         """
-        return render(request, self.TEMPLATE_LIKE_POSTPAGE, context=context)
+        return render(request, self.TEMPLATE_LIKE_POSTPAGE, context)
 
     def _redirect_to_post(self, pk):
         """

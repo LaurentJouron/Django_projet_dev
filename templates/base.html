@@ -12,42 +12,54 @@
     <meta name="author" content="Laurent Jouron">
 
     {% block seo_meta %}
-    <meta name="description" content="{% block meta_description %}{% endblock meta_description %}">
+    <meta name="description" content="{% block meta_description %}Partager et découvrir des publications sur ProjetDev{% endblock meta_description %}">
     <link rel="canonical" href="{{ request.build_absolute_uri }}">
     <meta name="robots" content="{% block meta_robots %}index, follow{% endblock meta_robots %}">
 
     <!-- Open Graph Meta Tags -->
-    <meta property="og:title" content="{% block og_title %}{% endblock og_title %}">
-    <meta property="og:description" content="{% block og_description %}{% endblock og_description %}">
-    <meta property="og:image" content="{{ SITE_URL }}{% block og_image %}{% endblock og_image %}">
+    <meta property="og:site_name" content="ProjetDev">
     <meta property="og:url" content="{{ request.build_absolute_uri }}">
+    <meta property="og:locale" content="fr_FR">
+    {% block meta_tags %}
+    <meta property="og:title" content="Bienvenue sur ProjetDev">
+    <meta property="og:description" content="Partager et découvrir des publications">
+    <meta property="og:image" content="{{ request.scheme }}://{{ request.get_host }}{% vite_asset_url 'images/favicon.ico' %}">
+    <meta property="og:image:width" content="1200">
+    <meta property="og:image:height" content="630">
     <meta property="og:type" content="website">
-
+    
     <!-- Twitter Meta Tags -->
     <meta name="twitter:card" content="summary_large_image">
-    <meta name="twitter:title" content="{% block twitter_title %}{% endblock twitter_title %}">
-    <meta name="twitter:description" content="{% block twitter_description %}{% endblock twitter_description %}">
-    <meta name="twitter:image" content="{{ SITE_URL }}{% block twitter_image %}{% endblock twitter_image %}">
-
-    <!-- Balise Keywords (optionnelle) -->
-    <meta name="keywords" content="{% block meta_keywords %}{% endblock meta_keywords %}">
+    <meta name="twitter:site" content="@ProjetDev">
+    <meta name="twitter:title" content="Bienvenue sur ProjetDev">
+    <meta name="twitter:description" content="Partager et découvrir des publications">
+    <meta name="twitter:image" content="{{ request.scheme }}://{{ request.get_host }}{% vite_asset_url 'images/favicon.ico' %}">
+    {% endblock meta_tags %}
     {% endblock seo_meta %}
 
     <!-- Title and logo in the navigation tab -->
     <link rel="icon" type="image/x-icon" href="{% vite_asset_url 'images/favicon.ico' %}">
-    <title>ProjetDev - {% block title %}{% endblock title %}</title>
+    <title>{% block title %}ProjetDev{% endblock title %}</title>
     
-    {% htmx_script %}
-    {% vite_asset 'src/main.js' %}
+    <!-- Styles -->
     <link rel="stylesheet" type="text/css" href="{% vite_asset_url 'src/css/app.css' %}">
-
+    
+    <!-- Scripts -->
+    {% htmx_script %}
+    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+    {% vite_asset 'src/main.js' %}
+    
     {% django_browser_reload_script %}
+    
+    {% block extra_head %}{% endblock extra_head %}
 </head>
-<body x-data="{ modalPage: false, modalBox: false }" class="dark:bg-black dark:text-white dark:fill-white" hx-headers='{"x-csrftoken": "{{ csrftoken }}"}'>
+<body x-data="{ modalPage: false, modalBox: false }" class="dark:bg-black dark:text-white dark:fill-white">
 
     {% include "./includes/modal.html" %}
-
-    {% block layout %}{% endblock %}
+    
+    <div hx-headers='{"X-CSRFToken": "{{ csrf_token }}"}'>
+        {% block layout %}{% endblock %}
+    </div>
 
 </body>
 </html>

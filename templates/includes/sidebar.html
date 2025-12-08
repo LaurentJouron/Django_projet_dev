@@ -11,6 +11,10 @@
                     <img class="hidden lg:block" :class="{ '!hidden': showDrawer }" src="{% vite_asset_url 'images/full_logo.png' %}" alt="">
                     <img class="block lg:hidden" :class="{ '!block': showDrawer }" src="{% vite_asset_url 'images/short_logo.png' %}" alt="">
                 </div>
+                <div x-show="darkMode">
+                    <img class="hidden lg:block" :class="{ '!hidden': showDrawer }" src="{% vite_asset_url 'images/full_logo.png' %}" alt="">
+                    <img class="block lg:hidden" :class="{ '!block': showDrawer }" src="{% vite_asset_url 'images/short_logo.png' %}" alt="">
+                </div>
             </a>
         </div>
         <div class="px-4">

@@ -17,6 +17,7 @@ INSTALLED_APPS = [
     # Local apps
     "apps.posts.apps.PostsConfig",
     "apps.users.apps.UsersConfig",
+    "apps.network.apps.NetworkConfig",
     # Django apps
     "django.contrib.admin",
     "django.contrib.auth",

@@ -105,7 +105,11 @@
                             <span class="hidden sm:block">Postes</span>
                         </div>
                     </button>
-                    <button @click="selectedTab = 'reposts'" class="px-4 xl:px-7 pb-2 border-b-2" :class="selectedTab === 'reposts' ? 'border-[#366BF5] text-[#366BF5]' : 'text-neutral-500 fill-neutral-500 border-transparent'">
+                    <button @click="selectedTab = 'reposts'" 
+                            hx-get="{% url 'users:profile' profile_user.username %}?reposted=true"
+                            hx-target="#reposts-container"
+                            hx-swap="innerHTML"
+                            class="px-4 xl:px-7 pb-2 border-b-2" :class="selectedTab === 'reposts' ? 'border-[#366BF5] text-[#366BF5]' : 'text-neutral-500 fill-neutral-500 border-transparent'">
                         <div class="flex items-center gap-2 justify-center">
                             <div class="size-5 shrink-0">
                                 <svg fill="none" viewBox="0 0 48 48" stroke-width="1.5" stroke="currentColor">
@@ -193,12 +197,7 @@
                 </div>
 
                 <div x-show="selectedTab === 'reposts'" x-cloak >
-                    <div class="text-center pt-32">
-                        <div class="font-bold text-2xl">Pas encore de reposts</div>
-                            {% if profile_user == user %}
-                                <div class="mt-2">Les publications que vous avez republiées apparaîtront ici</div>
-                            {% endif %}
-                    </div>
+                    <div id="reposts-container"></div>
                 </div>
                 <div x-show="selectedTab === 'favorites'" x-cloak >
                     <div id="bookmarked-container"></div>

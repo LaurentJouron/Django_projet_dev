@@ -1,0 +1,19 @@
+{% if profile_reposts %}
+<div class="grid gap-4 grid-cols-2 md:grid-cols-[repeat(auto-fill,_minmax(170px,_1fr))] py-4">
+    {% for post in profile_reposts %}
+    <div id="reposts_{{ post.uuid }}">
+        {% include "./_profile_post.html" %}
+    </div>
+    {% endfor %}
+</div>
+
+{% else %}
+<div class="text-center pt-32">
+    <div class="font-bold text-2xl">Pas encore de reposts</div>
+    {% if profile_user == user %}
+    <div class="mt-2">
+        Les publications que vous avez republiées apparaîtront ici
+    </div>
+    {% endif %}
+</div>
+{% endif %}

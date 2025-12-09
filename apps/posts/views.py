@@ -107,8 +107,8 @@ class HomeView(
     """
     Home view displaying paginated posts and reposts.
 
-    Displays a feed of posts and reposts with pagination support and HTMX
-    partial rendering for infinite scroll functionality.
+    Displays a feed of posts and reposts from followed users with pagination
+    support and HTMX partial rendering for infinite scroll functionality.
     """
 
     template_name = "posts/home.html"
@@ -159,6 +159,19 @@ class HomeView(
 
         return context
 
+    def _get_following_user_ids(self):
+        """
+        Get the list of user IDs that the current user follows, plus the user themselves.
+
+        Returns:
+            list: List of user IDs (followers + current user)
+        """
+        following_user_ids = self.request.user.is_follower.values_list(
+            "following", flat=True
+        )
+        user_ids = list(following_user_ids) + [self.request.user.id]
+        return user_ids
+
     def _get_page_number(self):
         """
         Get the requested page number from query parameters.
@@ -197,16 +210,46 @@ class HomeView(
             ),
         }
 
+    def _get_filtered_posts(self):
+        """
+        Get posts from followed users with optimized queries.
+
+        Returns:
+            QuerySet: Filtered posts queryset
+        """
+        user_ids = self._get_following_user_ids()
+
+        return (
+            Post.objects.filter(author__in=user_ids)
+            .select_related("author")
+            .prefetch_related(
+                "likes",
+                "bookmarks",
+                "reposts",
+                Prefetch(
+                    "comments",
+                    queryset=Comment.objects.select_related("author"),
+                ),
+            )
+            .order_by(self.ordering)
+        )
+
     def _get_reposts_queryset(self):
         """
-        Get the base queryset for reposts with optimized related data.
+        Get the base queryset for reposts from followed users with optimized related data.
 
         Returns:
             QuerySet: Optimized reposts queryset
         """
-        return Repost.objects.select_related(
-            "post__author", "user"
-        ).prefetch_related("post__likes", "post__bookmarks", "post__comments")
+        user_ids = self._get_following_user_ids()
+
+        return (
+            Repost.objects.filter(user__in=user_ids)
+            .select_related("post__author", "user")
+            .prefetch_related(
+                "post__likes", "post__bookmarks", "post__comments"
+            )
+        )
 
     def _prepare_reposted_posts(self):
         """
@@ -229,7 +272,7 @@ class HomeView(
 
     def _get_combined_feed(self):
         """
-        Combine posts and reposts into a single sorted feed.
+        Combine posts and reposts from followed users into a single sorted feed.
 
         Returns:
             list: Combined and sorted feed of posts and reposts
@@ -239,7 +282,7 @@ class HomeView(
         feed = cache.get(cache_key)
 
         if feed is None:
-            posts = self.get_posts()
+            posts = self._get_filtered_posts()
             reposted_posts = self._prepare_reposted_posts()
 
             feed = sorted(

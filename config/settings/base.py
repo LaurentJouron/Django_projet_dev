@@ -13,11 +13,7 @@ DEBUG = env.bool("DJANGO_DEBUG", False)
 # https://docs.djangoproject.com/fr/5.1/ref/settings/#allowed-hosts
 ALLOWED_HOSTS = []
 
-INSTALLED_APPS = [
-    # Local apps
-    "apps.posts.apps.PostsConfig",
-    "apps.users.apps.UsersConfig",
-    "apps.network.apps.NetworkConfig",
+DJANGO_APPS = [
     # Django apps
     "django.contrib.admin",
     "django.contrib.auth",
@@ -26,6 +22,9 @@ INSTALLED_APPS = [
     "django.contrib.messages",
     "django.contrib.staticfiles",
     "django.contrib.sitemaps",
+]
+
+THIRD_PARTY_APPS = [
     # Additional apps
     "jazzmin",
     "django_cleanup.apps.CleanupConfig",
@@ -41,6 +40,16 @@ INSTALLED_APPS = [
     "django_htmx",
     "widget_tweaks",
 ]
+
+LOCAL_APPS = [
+    # Local apps
+    "apps.posts.apps.PostsConfig",
+    "apps.users.apps.UsersConfig",
+    "apps.network.apps.NetworkConfig",
+]
+
+# https://docs.djangoproject.com/en/dev/ref/settings/#installed-apps
+INSTALLED_APPS = DJANGO_APPS + THIRD_PARTY_APPS + LOCAL_APPS
 
 # https://docs.djangoproject.com/en/dev/ref/settings/#site-id
 SITE_ID = 1

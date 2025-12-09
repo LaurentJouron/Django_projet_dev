@@ -1,0 +1,29 @@
+{% load network_tags %}
+
+<button id="follow_button_{{ this_user.username }}"
+        hx-post="{% url 'network:follow' this_user.username %}"
+        {% if not follow_clicked %}hx-swap="none"{% else %}hx-swap-oob="outerHTML"{% endif %}>
+    {% if user|is_following:this_user %}
+    <div class="bg-neutral-200/70 hover:bg-neutral-200 dark:bg-neutral-800 dark:hover:bg-neutral-700 rounded-md px-7 py-2">
+        Suivi
+    </div>
+    {% else %}
+    <div class="bg-[#366BF5] hover:bg-[#5037F8] text-white rounded-md px-7 py-2">
+        Suivre
+    </div>
+    {% endif %}
+</button>
+
+{% if request.htmx %}
+    <span id="following_count_{{ this_user.username }}" 
+          hx-swap-oob="innerHTML">{{ this_user.is_follower.count }}</span>
+    <span id="followers_count_{{ this_user.username }}" 
+          hx-swap-oob="innerHTML">{{ this_user.is_followed.count }}</span>
+
+    {% if user.username != this_user.username %}
+    <span id="following_count_{{ user.username }}" 
+          hx-swap-oob="innerHTML">{{ user.is_follower.count }}</span>
+    <span id="followers_count_{{ user.username }}" 
+          hx-swap-oob="innerHTML">{{ user.is_followed.count }}</span>
+    {% endif %}
+{% endif %}

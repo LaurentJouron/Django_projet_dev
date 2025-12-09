@@ -1,6 +1,7 @@
 {% load static %}
 {% load django_vite %}
 
+{% if posts %}
 {% for post in posts %}
     <article data-index="{{ forloop.counter0|add:page_start_index }}" class="h-full snap-start mx-auto py-2 px-4 flex justify-center items-center">
         <div class="relative bg-black max-h-full max-w-full lg:h-full rounded-2xl aspect-[9/16] flex justify-center items-center">
@@ -35,53 +36,15 @@
             </article-info>
 
             <article-buttons class="absolute -right-17 bottom-0 flex flex-col gap-2">
-                {% if not post.is_repost %}
-                    {% if post.author %}
-                    <button id="author" 
-                            hx-get="{% url 'users:profile' post.author.username %}"
-                            hx-target="#main-content"
-                            hx-swap="innerHTML transition:true"
-                            hx-push-url="true"
-                            class="relative cursor-pointer flex justify-center mb-4">
-                        <div class="rounded-full size-13 bg-neutral-100 overflow-hidden">
-                            <img src="{{ post.author.avatar }}" alt="" class="w-full h-full object-center object-cover">
-                        </div>
-                        <div class="absolute bg-[#366BF5] hover:bg-[#5037F8] size-6 rounded-full top-10 flex items-center justify-center">
-                            <div class="size-3.5 fill-white">
-                                <svg viewBox="0 0 48 48">
-                                    <path d="M26 7a1 1 0 0 0-1-1h-2a1 1 0 0 0-1 1v15H7a1 1 0 0 0-1 1v2a1 1 0 0 0 1 1h15v15a1 1 0 0 0 1 1h2a1 1 0 0 0 1-1V26h15a1 1 0 0 0 1-1v-2a1 1 0 0 0-1-1H26V7Z"></path>
-                                </svg>
-                            </div>
-                        </div>
-                    </button>
-                    {% endif %}
-                {% else %}
-                    {% if post.repost_author %}
-                    <button id="repost_author" 
-                            hx-get="{% url 'users:profile' post.repost_author.username %}"
-                            hx-target="#main-content"
-                            hx-swap="innerHTML transition:true"
-                            hx-push-url="true"
-                            class="relative cursor-pointer flex justify-center mb-4">
-                        <div class="rounded-full size-13 bg-neutral-100 overflow-hidden">
-                            <img src="{{ post.repost_author.avatar }}" alt="" class="w-full h-full object-center object-cover">
-                        </div>
-                        <div class="absolute bg-[#366BF5] hover:bg-[#5037F8] size-6 rounded-full top-10 flex items-center justify-center">
-                            <div class="size-3.5 fill-white">
-                                <svg viewBox="0 0 48 48">
-                                    <path d="M26 7a1 1 0 0 0-1-1h-2a1 1 0 0 0-1 1v15H7a1 1 0 0 0-1 1v2a1 1 0 0 0 1 1h15v15a1 1 0 0 0 1 1h2a1 1 0 0 0 1-1V26h15a1 1 0 0 0 1-1v-2a1 1 0 0 0-1-1H26V7Z"></path>
-                                </svg>
-                            </div>
-                        </div>
-                    </button>
-                    {% endif %}
-                {% endif %}
-                
 
+                <div id="author_home_{{ post.uuid }}">
+                {% include "./_author_home.html" %}
+                </div>
 
                 <div id="like_home_{{ post.uuid }}">
                     {% include "./_like_home.html" %}
                 </div>
+
                 <button id="comment" 
                         @click="modalPage = true; returnUrl = window.location.pathname;"
                         hx-get="{% url 'posts:post_page' post.uuid %}"
@@ -137,6 +100,13 @@
         </div>
     </article>
 {% endfor %}
+{% else %}
+<div class="h-full mx-auto flex justify-center items-center lg:mr-60">
+    <a href="{% url 'posts:explore' %}" class="hover:underline font-medium text-neutral-400 text-sm">
+        Suivez vos premiers comptes et partagez vos photos pour démarrer votre expérience.
+    </a>
+</div>
+{% endif %}
 
 {% if next_page %}
     <div

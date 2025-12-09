@@ -86,9 +86,11 @@
                                     </div>
                                 </button>
                                 {% else %}
-                                <button class="bg-[#366BF5] hover:bg-[#5037F8] rounded-md px-6 py-2 text-white">
-                                    Se connecter
-                                </button>
+
+                                {% with post.author as this_user %}
+                                {% include "../../network/partials/_follow_button.html" %}
+                                {% endwith %}
+
                                 {% endif %}
                             </div>
                         {% endif %}

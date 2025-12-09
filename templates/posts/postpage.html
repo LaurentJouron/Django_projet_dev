@@ -2,7 +2,7 @@
 {% load django_vite %}
 {% load static %}
 
-{% block  meta_tags %}
+{% block meta_tags %}
 <meta property="og:title" content="Posté par {{ post.author.username }}">
 <meta property="og:description" content="Consultez ce post">
 <meta property="og:image" content="{{ request.scheme }}://{{request.get_host }}{{ post.image.url }}">
@@ -12,7 +12,7 @@
 <meta name="twitter:title" content="Posté par {{ post.author.username }}">
 <meta name="twitter:description" content="Consultez ce post">
 <meta name="twitter:image" content="{{ request.scheme }}://{{ request.get_host }}{{ post.image.url }}">
-{% endblock  meta_tags %}
+{% endblock meta_tags %}
 
 {% block title %}postpage{% endblock title %}
 

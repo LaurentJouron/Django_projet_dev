@@ -12,29 +12,29 @@
     <meta name="author" content="Laurent Jouron">
 
     {% block seo_meta %}
-    <meta name="description" content="{% block meta_description %}Partager et découvrir des publications sur ProjetDev{% endblock meta_description %}">
-    <link rel="canonical" href="{{ request.build_absolute_uri }}">
-    <meta name="robots" content="{% block meta_robots %}index, follow{% endblock meta_robots %}">
+        <meta name="description" content="{% block meta_description %}Partager et découvrir des publications sur ProjetDev{% endblock meta_description %}">
+        <link rel="canonical" href="{{ request.build_absolute_uri }}">
+        <meta name="robots" content="{% block meta_robots %}index, follow{% endblock meta_robots %}">
 
-    <!-- Open Graph Meta Tags -->
-    <meta property="og:site_name" content="ProjetDev">
-    <meta property="og:url" content="{{ request.build_absolute_uri }}">
-    <meta property="og:locale" content="fr_FR">
-    {% block meta_tags %}
-    <meta property="og:title" content="Bienvenue sur ProjetDev">
-    <meta property="og:description" content="Partager et découvrir des publications">
-    <meta property="og:image" content="{{ request.scheme }}://{{ request.get_host }}{% vite_asset_url 'images/favicon.ico' %}">
-    <meta property="og:image:width" content="1200">
-    <meta property="og:image:height" content="630">
-    <meta property="og:type" content="website">
-    
-    <!-- Twitter Meta Tags -->
-    <meta name="twitter:card" content="summary_large_image">
-    <meta name="twitter:site" content="@ProjetDev">
-    <meta name="twitter:title" content="Bienvenue sur ProjetDev">
-    <meta name="twitter:description" content="Partager et découvrir des publications">
-    <meta name="twitter:image" content="{{ request.scheme }}://{{ request.get_host }}{% vite_asset_url 'images/favicon.ico' %}">
-    {% endblock meta_tags %}
+        <!-- Open Graph Meta Tags -->
+        <meta property="og:site_name" content="ProjetDev">
+        <meta property="og:url" content="{{ request.build_absolute_uri }}">
+        <meta property="og:locale" content="fr_FR">
+        {% block meta_tags %}
+        <meta property="og:title" content="Bienvenue sur ProjetDev">
+        <meta property="og:description" content="Partager et découvrir des publications">
+        <meta property="og:image" content="{{ request.scheme }}://{{ request.get_host }}{% vite_asset_url 'images/favicon.ico' %}">
+        <meta property="og:image:width" content="1200">
+        <meta property="og:image:height" content="630">
+        <meta property="og:type" content="website">
+        
+        <!-- Twitter Meta Tags -->
+        <meta name="twitter:card" content="summary_large_image">
+        <meta name="twitter:site" content="@ProjetDev">
+        <meta name="twitter:title" content="Bienvenue sur ProjetDev">
+        <meta name="twitter:description" content="Partager et découvrir des publications">
+        <meta name="twitter:image" content="{{ request.scheme }}://{{ request.get_host }}{% vite_asset_url 'images/favicon.ico' %}">
+        {% endblock meta_tags %}
     {% endblock seo_meta %}
 
     <!-- Title and logo in the navigation tab -->

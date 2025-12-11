@@ -6,7 +6,12 @@
     <p class="font-medium">
         {{ this_user.username }}
     </p>
+    <p class="text-sm text-center truncate w-full -mt-4">
+        {{ this_user.name }}
+    </p>
 
-    {% include "./_follow_rounded.html" %}
+    {% if this_user != user %}
+    {% include "../../network/partials/_follow_rounded.html" %}
+    {% endif %}
 
 </article>

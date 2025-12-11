@@ -1,0 +1,25 @@
+<div class="ml-18 lg:ml-60 px-4 xl:px-12">
+    <div class="max-w-5xl mx-auto py-8">
+
+        {% if users  %}
+
+            <div class="grid grid-cols-[repeat(auto-fill,_minmax(180px,_1fr))] gap-4">
+                {% for this_user in users %}
+                {% include "../../network/partials/_user_card.html" %}
+                {% endfor %}
+            </div>
+
+            {% else %}
+
+            <div class="text-center font-medium text-neutral-400 text-sm py-12 lg:mr-60">                
+                Aucun résultat pour "{{ request.GET.q }}"
+            </div>
+
+        {% endif %}
+
+    </div>
+</div>
+
+{% if request.htmx %}
+<title hx-swap-oob="true">Recherche - ProjetDev</title>
+{% endif %}

@@ -100,6 +100,8 @@ class HTMXTemplateMixin:
 
     Automatically selects the appropriate template based on whether
     the request is an HTMX request and whether pagination is active.
+
+    Compatible with both View and TemplateView classes.
     """
 
     partial_template = None
@@ -118,12 +120,12 @@ class HTMXTemplateMixin:
         request = self._get_request()
 
         if request is None:
-            return super().get_template_names()
+            return self._get_default_template_names()
 
         if self._is_htmx_request(request):
             return [self._get_htmx_template()]
 
-        return super().get_template_names()
+        return self._get_default_template_names()
 
     def get_partial_template(self):
         """
@@ -134,7 +136,7 @@ class HTMXTemplateMixin:
         """
         if self.partial_template:
             return self.partial_template
-        return super().get_template_names()[0]
+        return self._get_default_template_names()[0]
 
     def get_paginator_partial_template(self):
         """
@@ -145,7 +147,7 @@ class HTMXTemplateMixin:
         """
         if self.paginator_partial_template:
             return self.paginator_partial_template
-        return super().get_template_names()[0]
+        return self._get_default_template_names()[0]
 
     def is_htmx_request(self):
         """
@@ -196,3 +198,27 @@ class HTMXTemplateMixin:
             bool: True if paginator parameter exists
         """
         return bool(self.request.GET.get(self.PAGINATOR_PARAM))
+
+    def _get_default_template_names(self):
+        """
+        Get default template names.
+
+        Checks if parent class has get_template_names (TemplateView)
+        or falls back to template_name attribute (View).
+
+        Returns:
+            list: List of template names
+        """
+        # Try to call parent's get_template_names if it exists (TemplateView)
+        if hasattr(super(), "get_template_names"):
+            return super().get_template_names()
+
+        # Fallback for View class - use template_name attribute
+        if hasattr(self, "template_name") and self.template_name:
+            return [self.template_name]
+
+        # Last resort
+        raise AttributeError(
+            f"{self.__class__.__name__} must define 'template_name' attribute "
+            "or inherit from TemplateView"
+        )

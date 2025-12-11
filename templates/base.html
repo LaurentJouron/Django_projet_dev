@@ -10,6 +10,7 @@
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="author" content="Laurent Jouron">
+    <meta name="csrf-token" content="{{ csrf_token }}">
 
     {% block seo_meta %}
         <meta name="description" content="{% block meta_description %}Partager et découvrir des publications sur ProjetDev{% endblock meta_description %}">
@@ -27,7 +28,7 @@
         <meta property="og:image:width" content="1200">
         <meta property="og:image:height" content="630">
         <meta property="og:type" content="website">
-        
+
         <!-- Twitter Meta Tags -->
         <meta name="twitter:card" content="summary_large_image">
         <meta name="twitter:site" content="@ProjetDev">
@@ -40,26 +41,26 @@
     <!-- Title and logo in the navigation tab -->
     <link rel="icon" type="image/x-icon" href="{% vite_asset_url 'images/favicon.ico' %}">
     <title>{% block title %}ProjetDev{% endblock title %}</title>
-    
+
     <!-- Styles -->
     <link rel="stylesheet" type="text/css" href="{% vite_asset_url 'src/css/app.css' %}">
-    
+
     <!-- Scripts -->
     {% htmx_script %}
     <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
     {% vite_asset 'src/main.js' %}
-    
+
     {% django_browser_reload_script %}
-    
+
     {% block extra_head %}{% endblock extra_head %}
 </head>
-<body x-data="{ modalPage: false, modalBox: false }" class="dark:bg-black dark:text-white dark:fill-white">
+<body x-data="{ modalPage: false, modalBox: false }" 
+      class="dark:bg-black dark:text-white dark:fill-white"
+      hx-headers='{"X-CSRFToken": "{{ csrf_token }}"}'>
 
     {% include "./includes/modal.html" %}
-    
-    <div hx-headers='{"X-CSRFToken": "{{ csrf_token }}"}'>
-        {% block layout %}{% endblock %}
-    </div>
+
+    {% block layout %}{% endblock layout %}
 
 </body>
 </html>

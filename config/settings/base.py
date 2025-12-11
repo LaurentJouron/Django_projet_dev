@@ -46,6 +46,7 @@ LOCAL_APPS = [
     "apps.posts.apps.PostsConfig",
     "apps.users.apps.UsersConfig",
     "apps.network.apps.NetworkConfig",
+    "apps.search.apps.SearchConfig",
 ]
 
 # https://docs.djangoproject.com/en/dev/ref/settings/#installed-apps

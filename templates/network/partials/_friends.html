@@ -1,0 +1,41 @@
+<div class="ml-18 lg:ml-60 px-4 xl:px-12">
+    <div class="max-w-5xl mx-auto py-8">
+
+        {% if friends %}
+
+            <div class="grid grid-cols-[repeat(auto-fill,_minmax(180px,_1fr))] gap-4">
+                {% for this_user in friends %}
+                {% include "./_user_card.html" %}
+                {% endfor %}
+            </div>
+
+        {% else %}
+
+            <div class="text-center font-medium text-neutral-400 text-sm py-12 lg:mr-60">                
+                Les relations réciproques transforment les abonnés en amis.
+            </div>
+
+        {% endif %}
+
+        {% if suggested_friends %}
+            <p class="text-sm font-medium text-neutral-400 pt-12 pb-4">
+               Vos abonnés
+            </p>
+            <div class="grid grid-cols-[repeat(auto-fill,_minmax(180px,_1fr))] gap-4">
+                {% for this_user in suggested_friends %}
+                {% include "./_user_card.html" %}
+                {% endfor %}
+            </div>
+        {% endif %}
+
+    </div>
+</div>
+
+{% if request.htmx %}
+<title hx-swap-oob="true">Amis de ProjetDev</title>
+
+<div hx-swap-oob="innerHTML" id="navigation">
+    {% include "includes/navigation.html" %}
+</div>
+
+{% endif %}

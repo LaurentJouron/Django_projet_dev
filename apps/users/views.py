@@ -1,19 +1,19 @@
 import random
-from django.views import View
-from django.views.generic import TemplateView
-from django.shortcuts import get_object_or_404, render, redirect
 from django.contrib.auth.mixins import LoginRequiredMixin
-from django.contrib.auth import get_user_model
-from django.contrib.auth import logout
-from django.http import HttpResponse
+from django.contrib import messages
+from django.contrib.auth import get_user_model, logout
 from django.core.cache import cache
 from django.core.validators import validate_email
 from django.core.exceptions import ValidationError
-from django.urls import reverse
-from utils.mixins import PostSortingMixin, HTMXTemplateMixin
-from utils.emails.services import send_email_async
 from django.db.models import Count
-from django.contrib import messages
+from django.http import HttpResponse
+from django.shortcuts import get_object_or_404, render, redirect
+from django.urls import reverse
+from django.views import View
+from django.views.generic import TemplateView
+
+from utils.emails.services import send_email_async
+from utils.mixins import PostSortingMixin, HTMXTemplateMixin
 from .forms import (
     ProfileForm,
     EmailAddress,
@@ -73,6 +73,11 @@ class ProfileView(
         if request.GET.get("link"):
             return self._render_profile_link(request, username)
 
+        if request.GET.get("following"):
+            return self._render_following(request, profile_user)
+        if request.GET.get("followers"):
+            return self._render_followers(request, profile_user)
+
         if request.GET.get("reposted"):
             return self._render_reposts(request, profile_user)
 
@@ -92,11 +97,7 @@ class ProfileView(
             )
 
         # Use HTMXTemplateMixin for template selection
-        template = (
-            self.get_template_names()[0]
-            if request.htmx
-            else self.template_name
-        )
+        template = self.get_template_names()[0]
         return render(request, template, context)
 
     def _render_profile_link(self, request, username):
@@ -110,30 +111,61 @@ class ProfileView(
         Returns:
             HttpResponse: Rendered profile link partial
         """
+        template_name = "users/partials/_profile_link.html"
         urlpath = reverse("users:profile", kwargs={"username": username})
-        return render(
-            request, "users/partials/_profile_link.html", {"urlpath": urlpath}
-        )
+        context = {"urlpath": urlpath}
+        return render(request, template_name, context)
+
+    def _render_following(self, request, profile_user):
+        """
+        Render the following users partial.
+
+        Args:
+            request: The HTTP request object
+            username: Username whose following list to display
+
+        Returns:
+            HttpResponse: Rendered following users partial
+        """
+        template_name = "users/partials/_profile_following.html"
+        accounts = User.objects.filter(is_follower__following=profile_user)
+        context = {"accounts": accounts}
+        return render(request, template_name, context)
+
+    def _render_followers(self, request, profile_user):
+        """
+        Render the followers partial.
+
+        Args:
+            request: The HTTP request object
+            username: Username whose followers list to display
+
+        Returns:
+            HttpResponse: Rendered followers partial
+        """
+        template_name = "users/partials/_profile_following.html"
+        accounts = User.objects.filter(is_followed__follower=profile_user)
+        context = {"accounts": accounts, "followers": True}
+        return render(request, template_name, context)
 
     def _render_reposts(self, request, profile_user):
         """
         Render the reposted posts partial.
 
         Args:
-            request: The HTTP request object
-            profile_user: User whose reposts to display
+            request: The HTTP request object.
+            profile_user: User whose reposts to display.
 
         Returns:
-            HttpResponse: Rendered reposts partial
+            HttpResponse: Rendered reposts partial.
         """
+
+        template_name = "users/partials/_profile_posts_reposted.html"
         profile_reposts = profile_user.repostedposts.order_by(
             "-repost__created_at"
         )
-        return render(
-            request,
-            "users/partials/_profile_posts_reposted.html",
-            {"profile_reposts": profile_reposts},
-        )
+        context = {"profile_reposts": profile_reposts}
+        return render(request, template_name, context)
 
     def _render_liked_posts(self, request, profile_user):
         """
@@ -146,14 +178,12 @@ class ProfileView(
         Returns:
             HttpResponse: Rendered liked posts partial
         """
+        template_name = "users/partials/_profile_posts_liked.html"
         profile_posts_liked = profile_user.likedposts.all().order_by(
             "-likedpost__created_at"
         )
-        return render(
-            request,
-            "users/partials/_profile_posts_liked.html",
-            {"profile_posts_liked": profile_posts_liked},
-        )
+        context = {"profile_posts_liked": profile_posts_liked}
+        return render(request, template_name, context)
 
     def _render_bookmarked_posts(self, request):
         """
@@ -165,14 +195,13 @@ class ProfileView(
         Returns:
             HttpResponse: Rendered bookmarked posts partial
         """
+
+        template_name = "users/partials/_profile_posts_bookmarked.html"
         profile_posts_bookmarked = request.user.bookmarkedposts.all().order_by(
             "-bookmarkedpost__created_at"
         )
-        return render(
-            request,
-            "users/partials/_profile_posts_bookmarked.html",
-            {"profile_posts_bookmarked": profile_posts_bookmarked},
-        )
+        context = {"profile_posts_bookmarked": profile_posts_bookmarked}
+        return render(request, template_name, context)
 
     def _get_main_context(self, request, profile_user):
         """

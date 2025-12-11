@@ -8,6 +8,7 @@ urlpatterns = [
     path("", include("apps.posts.urls", namespace="posts")),
     path("users/", include("apps.users.urls", namespace="users")),
     path("network/", include("apps.network.urls", namespace="network")),
+    path("search/", include("apps.search.urls", namespace="search")),
     path(
         "accounts/password/change/",
         PasswordChangeView.as_view(success_url=reverse_lazy("users:settings")),

@@ -15,7 +15,8 @@ from itertools import chain
 
 from utils.mixins import PostOrderingMixin, HTMXTemplateMixin
 from .forms import PostForm, PostEditForm
-from .models import Post, Comment, Repost
+from .models import Post, Comment, Repost, Tag
+from .utils import process_tags
 
 logger = logging.getLogger(__name__)
 
@@ -334,7 +335,7 @@ class ExploreView(
     Explore view displaying all posts.
 
     Displays a feed of all posts ordered by the configured ordering.
-    Supports HTMX partial rendering for seamless navigation.
+    Supports filtering by tags and HTMX partial rendering for seamless navigation.
     """
 
     template_name = "posts/explore.html"
@@ -345,22 +346,33 @@ class ExploreView(
 
     def get_context_data(self, **kwargs):
         """
-        Add posts and HTMX status to the template context.
+        Add posts, tags, and HTMX status to the template context.
 
         Args:
             **kwargs: Additional context data
 
         Returns:
-            dict: Context dictionary with posts and partial flag
+            dict: Context dictionary with posts, tags, and partial flag
         """
         context = super().get_context_data(**kwargs)
 
         try:
+            # Get selected tag from query parameters
+            selected_tag = self.request.GET.get("tag")
+
+            # Get posts (filtered by tag if selected)
+            posts = self._get_filtered_posts(selected_tag)
+
+            # Get top 4 tags
+            tags = Tag.objects.all()[:4]
+
             context.update(
                 {
                     "page": self.PAGE_TITLE,
                     "partial": self.is_htmx_request(),
-                    "posts": self.get_posts(),
+                    "posts": posts,
+                    "tags": tags,
+                    "selected_tag": selected_tag,
                 }
             )
         except Exception as e:
@@ -370,11 +382,30 @@ class ExploreView(
                     "page": self.PAGE_TITLE,
                     "partial": self.is_htmx_request(),
                     "posts": [],
+                    "tags": [],
+                    "selected_tag": None,
                     "error": "Une erreur est survenue.",
                 }
             )
 
         return context
+
+    def _get_filtered_posts(self, selected_tag=None):
+        """
+        Get posts filtered by tag if provided.
+
+        Args:
+            selected_tag: Tag name to filter by (optional)
+
+        Returns:
+            QuerySet: Filtered posts queryset
+        """
+        posts = self.get_posts()
+
+        if selected_tag:
+            posts = posts.filter(tags__name__iexact=selected_tag)
+
+        return posts
 
 
 class UploadView(
@@ -453,6 +484,11 @@ class UploadView(
         try:
             # Save post with author
             post = self._save_post(form)
+
+            # Process tags from POST data
+            input_tags = self.request.POST.get("tags", "")
+            process_tags(post, input_tags)
+
             logger.info(
                 f"Post created: {post.uuid} by user {self.request.user.id}"
             )
@@ -915,6 +951,10 @@ class PostEditView(
         """
         username = request.user.username
         post_uuid = self.post_obj.uuid
+
+        # Process tags before deletion (clean up tag associations)
+        process_tags(self.post_obj)
+
         self.post_obj.delete()
 
         # Invalidate caches
@@ -946,15 +986,17 @@ class PostEditView(
         Returns:
             HttpResponseRedirect: Redirect to post page
         """
-        form.save()
+        post = form.save()
+
+        # Process tags from form
+        input_tags = form.cleaned_data.get("tags", "")
+        process_tags(post, input_tags)
 
         # Invalidate caches
         cache.delete(f"home_feed_{self.request.user.id}_{self.ordering}")
-        cache.delete(f"author_posts_{self.post_obj.author.id}_{self.ordering}")
+        cache.delete(f"author_posts_{post.author.id}_{self.ordering}")
 
-        logger.info(
-            f"Post {self.post_obj.uuid} updated by user {self.request.user.id}"
-        )
+        logger.info(f"Post {post.uuid} updated by user {self.request.user.id}")
         return self._redirect_to_post()
 
     def _form_invalid(self, request, form):

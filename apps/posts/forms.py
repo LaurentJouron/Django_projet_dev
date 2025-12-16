@@ -3,15 +3,37 @@ from .models import Post
 
 
 class PostForm(forms.ModelForm):
+    tags = forms.CharField(
+        required=False,
+        widget=forms.TextInput(
+            attrs={
+                "class": "input-field",
+                "placeholder": "#tags - séparés par un espace",
+                "maxlength": "80",
+            }
+        ),
+    )
+
     class Meta:
         model = Post
-        fields = ["image", "body", "tags", "author"]
+        fields = ["image", "body"]
 
 
 class PostEditForm(forms.ModelForm):
+    tags = forms.CharField(
+        required=False,
+        widget=forms.TextInput(
+            attrs={
+                "class": "input-field",
+                "placeholder": "#tags - séparés par un espace",
+                "maxlength": "80",
+            }
+        ),
+    )
+
     class Meta:
         model = Post
-        fields = ["body", "tags"]
+        fields = ["body"]
         widgets = {
             "body": forms.Textarea(
                 attrs={
@@ -21,11 +43,15 @@ class PostEditForm(forms.ModelForm):
                     "maxlength": "80",
                 }
             ),
-            "tags": forms.TextInput(
-                attrs={
-                    "class": "input-field",
-                    "placeholder": "#tags - séparés par un espace",
-                    "maxlength": "80",
-                }
-            ),
         }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+        if self.instance.pk:
+            tag_objs = self.instance.tags.all()
+            tags = [str(tag) for tag in tag_objs]
+            if tags:
+                self.initial["tags"] = " ".join(tags)
+            else:
+                self.initial["tags"] = ""

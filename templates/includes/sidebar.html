@@ -2,24 +2,42 @@
 {% load django_vite %}
 
 <aside x-data="sidebarComponent()"
-    class="z-20 fixed h-screen w-18 lg:w-60 border-r border-neutral-200  dark:border-neutral-800 lg:border-none transition-all duration-300 ease-in-out" :class="{ '!w-18': showDrawer }">
+    class="z-20 fixed h-screen w-18 lg:w-60 border-r border-neutral-200 dark:border-neutral-800 lg:border-none transition-all duration-300 ease-in-out" 
+    :class="{ '!w-18': showDrawer }"
+    role="navigation"
+    aria-label="Navigation principale">
 
     <nav class="relative h-full bg-white dark:bg-black z-10">
         <div id="logo" class="pl-4.5 pt-5 mb-3 w-max">
-            <a href="{% url 'posts:home' %}" x-cloak>
+            <a href="{% url 'posts:home' %}" x-cloak aria-label="Retour à l'accueil">
+
                 <div x-show="!darkMode">
-                    <img class="hidden lg:block" :class="{ '!hidden': showDrawer }" src="{% vite_asset_url 'images/full_logo.png' %}" alt="">
-                    <img class="block lg:hidden" :class="{ '!block': showDrawer }" src="{% vite_asset_url 'images/short_logo.png' %}" alt="">
+                    <img class="hidden lg:block" :class="{ '!hidden': showDrawer }" 
+                         src="{% vite_asset_url 'images/full_logo.png' %}" 
+                         alt="ProjetDev - Logo complet">
+                    <img class="block lg:hidden" :class="{ '!block': showDrawer }" 
+                         src="{% vite_asset_url 'images/short_logo.png' %}" 
+                         alt="ProjetDev - Logo">
                 </div>
+
                 <div x-show="darkMode">
-                    <img class="hidden lg:block" :class="{ '!hidden': showDrawer }" src="{% vite_asset_url 'images/full_logo.png' %}" alt="">
-                    <img class="block lg:hidden" :class="{ '!block': showDrawer }" src="{% vite_asset_url 'images/short_logo.png' %}" alt="">
+                    <img class="hidden lg:block" :class="{ '!hidden': showDrawer }" 
+                         src="{% vite_asset_url 'images/full_logo.png' %}" 
+                         alt="ProjetDev - Logo complet">
+                    <img class="block lg:hidden" :class="{ '!block': showDrawer }" 
+                         src="{% vite_asset_url 'images/short_logo.png' %}" 
+                         alt="ProjetDev - Logo">
                 </div>
+
             </a>
         </div>
         <div class="px-4">
-            <button id="search" @click="showDrawer = !showDrawer; showSearch = true" id="search" class="w-full h-10 bg-neutral-100 dark:bg-neutral-800 rounded-full pl-2.5 flex items-center cursor-pointer">
-                <div class="size-5 flex-shrink-0">
+            <button @click="showDrawer = !showDrawer; showSearch = true" 
+                    class="w-full h-10 bg-neutral-100 dark:bg-neutral-800 rounded-full pl-2.5 flex items-center cursor-pointer"
+                    aria-label="Ouvrir la recherche"
+                    aria-expanded="false"
+                    :aria-expanded="showDrawer && showSearch">
+                <div class="size-5 flex-shrink-0" aria-hidden="true">
                     <svg viewBox="0 0 48 48">
                         <path d="M21.83 7.5a14.34 14.34 0 1 1 0 28.68 14.34 14.34 0 0 1 0-28.68Zm0-4a18.33 18.33 0 1 0 11.48 32.64l8.9 8.9a1 1 0 0 0 1.42 0l1.4-1.41a1 1 0 0 0 0-1.42l-8.89-8.9A18.34 18.34 0 0 0 21.83 3.5Z"></path>
                     </svg>
@@ -35,23 +53,33 @@
             </div>
 
             <div class="py-4 border-neutral-200 dark:border-neutral-800 hidden lg:block" :class="{ '!hidden' : showDrawer }">
-                <p class="text-neutral-400  dark:text-neutral-500 text-xs whitespace-nowrap">&copy; 2025 ProjetDev</p>
+                <p class="text-neutral-400 dark:text-neutral-500 text-xs whitespace-nowrap">&copy; 2025 ProjetDev</p>
             </div>
         </div>
     </nav>
 
-    <side-drawer @click.outside="showDrawer = false; resetAll()" x-show="showDrawer" x-cloak class="fixed left-18 top-0 w-80 h-full border-l border-r border-neutral-200 dark:border-neutral-800 bg-white dark:bg-black"
-                x-transition:enter="transition duration-300 ease-out"
-                x-transition:enter-start="-translate-x-full opacity-0"
-                x-transition:enter-end="translate-x-0 opacity-100"
-                x-transition:leave="transition duration-200 ease-in"
-                x-transition:leave-start="translate-x-0 opacity-100"
-                x-transition:leave-end="-translate-x-full opacity-0"
-                >
+    <!-- Drawer latéral -->
+    <div @click.outside="showDrawer = false; resetAll()" 
+         x-show="showDrawer" 
+         x-cloak 
+         class="fixed left-18 top-0 w-80 h-full border-l border-r border-neutral-200 dark:border-neutral-800 bg-white dark:bg-black"
+         x-transition:enter="transition duration-300 ease-out"
+         x-transition:enter-start="-translate-x-full opacity-0"
+         x-transition:enter-end="translate-x-0 opacity-100"
+         x-transition:leave="transition duration-200 ease-in"
+         x-transition:leave-start="translate-x-0 opacity-100"
+         x-transition:leave-end="-translate-x-full opacity-0"
+         role="dialog"
+         aria-modal="true"
+         :aria-label="showSearch ? 'Recherche' : showMore ? 'Menu plus' : showColorModes ? 'Mode sombre' : ''"
+         tabindex="-1">
 
+        <!-- Section Recherche -->
         <div x-show="showSearch" class="relative px-2 py-5">
-            <button id="close-button" @click="showDrawer = false; resetAll()" class="absolute right-4 top-6 size-7 bg-neutral-100 dark:bg-neutral-800 hover:bg-neutral-200 dark:hover:bg-neutral-700 rounded-full flex items-center justify-center cursor-pointer">
-                <div class="size-4">
+            <button @click="showDrawer = false; resetAll()" 
+                    class="absolute right-4 top-6 size-7 bg-neutral-100 dark:bg-neutral-800 hover:bg-neutral-200 dark:hover:bg-neutral-700 rounded-full flex items-center justify-center cursor-pointer"
+                    aria-label="Fermer la recherche">
+                <div class="size-4" aria-hidden="true">
                     <svg viewBox="0 0 48 48">
                         <path d="M38.7 12.12a1 1 0 0 0 0-1.41l-1.4-1.42a1 1 0 0 0-1.42 0L24 21.17 12.12 9.3a1 1 0 0 0-1.41 0l-1.42 1.42a1 1 0 0 0 0 1.41L21.17 24 9.3 35.88a1 1 0 0 0 0 1.41l1.42 1.42a1 1 0 0 0 1.41 0L24 26.83 35.88 38.7a1 1 0 0 0 1.41 0l1.42-1.42a1 1 0 0 0 0-1.41L26.83 24 38.7 12.12Z"></path>
                     </svg>
@@ -59,24 +87,28 @@
             </button>
 
             {% include "search/search.html" %}
-
         </div>
+
+        <!-- Section "Plus" -->
         <div x-show="showMore" class="relative px-2 py-5">
-            <button id="close-button" @click="showDrawer = false; resetAll()" class="absolute right-4 top-6 size-7 bg-neutral-100 dark:bg-neutral-800 hover:bg-neutral-200 dark:hover:bg-neutral-700 rounded-full flex items-center justify-center cursor-pointer">
-                <div class="size-4">
+            <button @click="showDrawer = false; resetAll()" 
+                    class="absolute right-4 top-6 size-7 bg-neutral-100 dark:bg-neutral-800 hover:bg-neutral-200 dark:hover:bg-neutral-700 rounded-full flex items-center justify-center cursor-pointer"
+                    aria-label="Fermer le menu">
+                <div class="size-4" aria-hidden="true">
                     <svg viewBox="0 0 48 48">
                         <path d="M38.7 12.12a1 1 0 0 0 0-1.41l-1.4-1.42a1 1 0 0 0-1.42 0L24 21.17 12.12 9.3a1 1 0 0 0-1.41 0l-1.42 1.42a1 1 0 0 0 0 1.41L21.17 24 9.3 35.88a1 1 0 0 0 0 1.41l1.42 1.42a1 1 0 0 0 1.41 0L24 26.83 35.88 38.7a1 1 0 0 0 1.41 0l1.42-1.42a1 1 0 0 0 0-1.41L26.83 24 38.7 12.12Z"></path>
                     </svg>
                 </div>
             </button>
             <h2 class="pl-2 mb-7">Plus</h2>
-            <ul class="flex flex-col gap-1">
-                <li>
-                    <button @click="resetAll(); showColorModes = true" class="button-rounded dark:hover:!bg-neutral-800">
-                        <span class="font-medium">
-                            Mode sombre
-                        </span>
-                        <div class="size-4 fill-neutral-400">
+            <ul class="flex flex-col gap-1" role="menu">
+                <li role="none">
+                    <button @click="resetAll(); showColorModes = true" 
+                            class="button-rounded dark:hover:!bg-neutral-800"
+                            role="menuitem"
+                            aria-label="Ouvrir les paramètres du mode sombre">
+                        <span class="font-medium">Mode sombre</span>
+                        <div class="size-4 fill-neutral-400" aria-hidden="true">
                             <svg viewBox="0 0 48 48">
                                 <path d="M28.74 24 15.08 10.33a1 1 0 0 1 0-1.41l1.84-1.84a1 1 0 0 1 1.41 0L34.54 23.3a1 1 0 0 1 0 1.42l-16.2 16.21a1 1 0 0 1-1.42 0l-1.84-1.84a1 1 0 0 1 0-1.41L28.74 24Z"></path>
                             </svg>
@@ -84,32 +116,34 @@
                     </button>
                 </li>
 
-                <li>
-                    <a href="{% url 'users:settings' %}" class="button-rounded dark:hover:!bg-neutral-800">
-                        <span class="font-medium">
-                            Paramètres
-                        </span>
+                <li role="none">
+                    <a href="{% url 'users:settings' %}" 
+                       class="button-rounded dark:hover:!bg-neutral-800"
+                       role="menuitem">
+                        <span class="font-medium">Paramètres</span>
                     </a>
                 </li>
 
-                <li>
+                <li role="none">
                     <form method="post" action="{% url 'account_logout' %}">
                         {% csrf_token %}
-
-                        <button type="submit" class="button-rounded dark:hover:!bg-neutral-800">
-                            <span class="font-medium">
-                                Se déconnecter
-                            </span>
+                        <button type="submit" 
+                                class="button-rounded dark:hover:!bg-neutral-800"
+                                role="menuitem">
+                            <span class="font-medium">Se déconnecter</span>
                         </button>
                     </form>
                 </li>
             </ul>
         </div>
 
+        <!-- Section "Mode sombre" -->
         <div x-show="showColorModes" class="relative px-2 py-5">
             <div class="flex items-center mb-7 pl-2">
-                <button @click="resetAll(); showMore = true" class="size-6 rounded-full bg-neutral-100 dark:bg-neutral-800 hover:bg-neutral-200 dark:hover:bg-neutral-700 flex items-center justify-center cursor-pointer">
-                    <div class="size-3 fill-neutral-700 dark:fill-white">
+                <button @click="resetAll(); showMore = true" 
+                        class="size-6 rounded-full bg-neutral-100 dark:bg-neutral-800 hover:bg-neutral-200 dark:hover:bg-neutral-700 flex items-center justify-center cursor-pointer"
+                        aria-label="Retour au menu Plus">
+                    <div class="size-3 fill-neutral-700 dark:fill-white" aria-hidden="true">
                         <svg viewBox="0 0 48 48">
                             <path d="m19.26 24 13.66-13.67a1 1 0 0 0 0-1.41l-1.84-1.84a1 1 0 0 0-1.41 0L13.46 23.3a1 1 0 0 0 0 1.42l16.2 16.21a1 1 0 0 0 1.42 0l1.84-1.84a1 1 0 0 0 0-1.41L19.26 24Z"></path>
                         </svg>
@@ -117,40 +151,44 @@
                 </button>
                 <h2 class="pl-2">Mode sombre</h2>
             </div>
-            <ul class="flex flex-col gap-1">
+            <ul class="flex flex-col gap-1" role="radiogroup" aria-label="Sélection du thème">
                 <li>
                     <button @click="darkMode = true" 
                             hx-get="{% url 'users:settings' %}?darkmode=true"
                             hx-swap="none"
-                            class="button-rounded dark:hover:!bg-neutral-800">
-                        <span class="font-medium">
-                            Mode sombre
-                        </span>
-                        <div x-show="darkMode" class="size-3.5">
+                            class="button-rounded dark:hover:!bg-neutral-800"
+                            role="radio"
+                            :aria-checked="darkMode"
+                            aria-label="Activer le mode sombre">
+                        <span class="font-medium">Mode sombre</span>
+                        <div x-show="darkMode" class="size-3.5" aria-hidden="true">
                             <svg viewBox="0 0 48 48">
                                 <path d="M43 6.08c.7.45 1.06.67 1.25.98.16.27.23.59.2.9-.03.36-.26.72-.7 1.43L23.06 42.14a3.5 3.5 0 0 1-5.63.39L4.89 27.62c-.54-.64-.81-.96-.9-1.32a1.5 1.5 0 0 1 .09-.92c.14-.33.46-.6 1.1-1.14l1.69-1.42c.64-.54.96-.81 1.31-.9.3-.06.63-.04.92.09.34.14.6.46 1.15 1.1l9.46 11.25 18.11-28.7c.45-.72.68-1.07.99-1.26.27-.16.59-.23.9-.2.36.03.71.25 1.43.7L43 6.08Z"></path>
                             </svg>
                         </div>
+                        <span x-show="darkMode" class="sr-only">Sélectionné</span>
                     </button>
                 </li>
                 <li>
                     <button @click="darkMode = false" 
                             hx-get="{% url 'users:settings' %}?darkmode=false"
                             hx-swap="none"
-                            class="button-rounded dark:hover:!bg-neutral-800">
-                        <span class="font-medium">
-                            Mode clair
-                        </span>
-                        <div x-show="!darkMode" class="size-3.5">
+                            class="button-rounded dark:hover:!bg-neutral-800"
+                            role="radio"
+                            :aria-checked="!darkMode"
+                            aria-label="Activer le mode clair">
+                        <span class="font-medium">Mode clair</span>
+                        <div x-show="!darkMode" class="size-3.5" aria-hidden="true">
                             <svg viewBox="0 0 48 48">
                                 <path d="M43 6.08c.7.45 1.06.67 1.25.98.16.27.23.59.2.9-.03.36-.26.72-.7 1.43L23.06 42.14a3.5 3.5 0 0 1-5.63.39L4.89 27.62c-.54-.64-.81-.96-.9-1.32a1.5 1.5 0 0 1 .09-.92c.14-.33.46-.6 1.1-1.14l1.69-1.42c.64-.54.96-.81 1.31-.9.3-.06.63-.04.92.09.34.14.6.46 1.15 1.1l9.46 11.25 18.11-28.7c.45-.72.68-1.07.99-1.26.27-.16.59-.23.9-.2.36.03.71.25 1.43.7L43 6.08Z"></path>
                             </svg>
                         </div>
+                        <span x-show="!darkMode" class="sr-only">Sélectionné</span>
                     </button>
                 </li>
             </ul>
         </div>
-    </side-drawer>
+    </div>
 </aside>
 
 <script>

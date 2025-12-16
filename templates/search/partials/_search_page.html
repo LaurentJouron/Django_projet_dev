@@ -1,17 +1,38 @@
 <div class="ml-18 lg:ml-60 px-4 xl:px-12">
     <div class="max-w-5xl mx-auto py-8">
 
-        {% if users  %}
+        {% if posts or users  %}
+            <div x-data="{ selectedTab: {{ posts|length }} === 0 ? 'users' : 'posts' }">
 
-            <div class="grid grid-cols-[repeat(auto-fill,_minmax(180px,_1fr))] gap-4">
-                {% for this_user in users %}
-                {% include "../../network/partials/_user_card.html" %}
-                {% endfor %}
+                <div class="flex gap-12 text-md font-medium border-b border-neutral-300 dark:border-neutral-800 mb-5">
+                    <button @click="selectedTab = 'posts'" class="border-b-2 pb-3" :class=" selectedTab === 'posts' ? 'border-black dark:border-white' : 'text-neutral-400 border-transparent'">
+                        Posts ({{ posts|length }})
+                    </button>
+                    <button @click="selectedTab = 'users'" class="border-b-2 pb-3" :class=" selectedTab === 'users' ? 'border-black dark:border-white' : 'text-neutral-400 border-transparent'">
+                        Users ({{ users|length }})
+                    </button>
+                </div>
+
+                <div x-show="selectedTab === 'posts'" x-cloak>
+                    <div class="grid grid-cols-[repeat(auto-fill,_minmax(180px,_1fr))] gap-4">
+                        {% for post in posts %}
+                        {% include "../../posts/partials/_post_card.html" %}
+                        {% endfor %}
+                    </div>
+                </div>
+                
+                <div x-show="selectedTab === 'users'" x-cloak>
+                    <div class="grid grid-cols-[repeat(auto-fill,_minmax(180px,_1fr))] gap-4">
+                        {% for this_user in users %}
+                        {% include "../../network/partials/_user_card.html" %}
+                        {% endfor %}
+                    </div>
+                </div>
             </div>
 
             {% else %}
 
-            <div class="text-center font-medium text-neutral-400 text-sm py-12 lg:mr-60">                
+            <div class="text-center font-medium text-neutral-400 text-sm py-12 lg:mr-60">
                 Aucun résultat pour "{{ request.GET.q }}"
             </div>
 

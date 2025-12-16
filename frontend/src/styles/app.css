@@ -3,89 +3,147 @@
 @source "../../../.venv/**/crispy_forms/**/*.{html,py,js,css}";
 @custom-variant dark (&:where(.dark, .dark *));
 
+@layer base {
+    :root {
+        /* Brand */
+        --color-primary: 54 107 245;      /* #366BF5 */
+        --color-primary-hover: 80 55 248; /* #5037F8 */
+
+        /* UI */
+        --color-bg: 255 255 255;
+        --color-bg-muted: 245 245 245;
+        --color-border: 212 212 212;
+
+        /* Text */
+        --color-text: 23 23 23;
+        --color-text-muted: 115 115 115;
+    }
+
+    .dark {
+        --dark-bg: 43 43 43;
+/* dark:bg-[rgb(var(--dark-bg))] */
+
+        --color-primary: 0 0 0;
+        --color-primary-hover: 99 102 241;
+
+        --color-bg-muted: 38 38 38;
+        --color-border: 64 64 64;
+
+        --color-text: 245 245 245;
+        --color-text-muted: 163 163 163;
+    }
+}
+
 [x-cloak] {
     display: none !important;
 }
+
 body {
     @apply font-light
 }
+
 h1 {
     @apply text-[2rem] font-bold
 }
+
 h2 {
     @apply text-[1.2rem] font-bold
 }
+
 #account input, .input-field {
     @apply bg-neutral-100 w-full px-3 py-2.5 border border-neutral-300 rounded-sm placeholder-neutral-400 focus:border-neutral-400 focus:outline-hidden 
 }
+
 #account button {
     @apply bg-[#366BF5] hover:bg-[#5037F8] text-white px-4 py-2.5 rounded-sm font-medium mb-2
 }
+
 #account label {
-    @apply hidden
+    @apply sr-only
 }
+
 #account p {
     @apply py-2
 }
+
 #account li {
     @apply text-sm py-1 list-disc ml-5
 }
+
 #account button[form="logout-from-stage"] {
     @apply bg-neutral-200 hover:bg-neutral-300 text-neutral-500 px-4 py-2.5 rounded-md font-medium mb-2
 }
+
 button {
     @apply cursor-pointer focus:outline-none
 }
+
 .button {
     @apply bg-neutral-100 w-full px-3 py-2.5 rounded-sm font-medium text-neutral-400 select-none
 }
+
 .button-active {
     @apply bg-[#366BF5] hover:bg-[#5037F8] text-white
 }
+
 .button-nav {
     @apply w-full h-10 rounded-md hover:bg-neutral-100 flex items-center px-1
 }
+
 .button-nav span {
     @apply ml-3 font-medium hidden lg:block whitespace-nowrap transition duration-300
 }
+
 .button-rounded {
     @apply w-full h-10 rounded-full hover:bg-neutral-100 flex items-center justify-between px-2
 }
+
 .button-article {
     @apply rounded-full size-13 bg-neutral-100 hover:bg-neutral-200 flex items-center justify-center transition-all duration-300
 }
+
 input[type="search"]::-webkit-search-cancel-button {
     -webkit-appearance: none; 
     appearance: none;
 }
+
 .hide-scrollbar::-webkit-scrollbar {
     display: none;
 }
+
 .hide-scrollbar {
     scrollbar-width: none;          /* Firefox */
     -ms-overflow-style: none;       /* IE 10+ */
 }
+
 .input-field {
     @apply bg-neutral-100 w-full px-3 py-2.5 border border-neutral-300 rounded-sm placeholder-neutral-400 focus:outline-hidden
 }
+
 .button {
     @apply bg-neutral-100 w-full px-3 py-2.5 rounded-sm font-medium text-neutral-400 select-none
 }
+
 .button-active {
     @apply bg-[#366BF5] hover:bg-[#5037F8] text-white cursor-pointer
 }
+
 .errorlist {
     @apply py-2
 }
+
 .errorlist li {
     @apply text-[#366BF5] text-sm border-l-3 pl-3 my-1
 }
+
 .success {
     @apply text-green-600 text-sm
 }
+
 .error {
     @apply text-rose-600 text-sm
 }
+
 @keyframes scaleIn {
     0% {
         transform: scale(0.6);
@@ -96,6 +154,94 @@ input[type="search"]::-webkit-search-cancel-button {
         opacity: 1;
     }
 }
+
 .scale-in {
     animation: scaleIn 0.2s forwards;
+}
+
+/* ========================================
+   ACCESSIBILITÉ
+   ======================================== */
+
+/* Skip link - Lien d'évitement pour navigation clavier */
+.skip-link {
+    @apply absolute -top-10 left-0 bg-black text-white px-4 py-2 z-[100] font-medium;
+}
+
+.skip-link:focus {
+    @apply top-0;
+}
+
+/* Screen reader only - Contenu visible uniquement par lecteurs d'écran */
+.sr-only {
+    @apply absolute w-px h-px p-0 -m-px overflow-hidden whitespace-nowrap;
+    clip: rect(0, 0, 0, 0);
+    border-width: 0;
+}
+
+/* Focus visible amélioré pour navigation clavier */
+*:focus-visible {
+    @apply outline outline-2 outline-offset-2 outline-[#366BF5];
+}
+
+button:focus-visible,
+a:focus-visible,
+input:focus-visible,
+textarea:focus-visible,
+select:focus-visible {
+    @apply outline outline-2 outline-offset-2 outline-[#366BF5];
+}
+
+/* Suppression des outlines par défaut (remplacés par focus-visible) */
+*:focus:not(:focus-visible) {
+    outline: none;
+}
+
+/* Respect de prefers-reduced-motion pour utilisateurs sensibles aux animations */
+@media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+        scroll-behavior: auto !important;
+    }
+    
+    .scale-in {
+        animation: none;
+    }
+}
+
+/* Amélioration du contraste en mode dark (WCAG AA) */
+.dark .text-neutral-400 {
+    @apply text-neutral-300;
+}
+
+.dark .text-neutral-500 {
+    @apply text-neutral-400;
+}
+
+/* Indicateur visuel pour éléments interactifs disabled */
+button:disabled,
+input:disabled,
+select:disabled,
+textarea:disabled {
+    @apply opacity-50 cursor-not-allowed;
+}
+
+/* Amélioration de la visibilité des liens */
+a:not(.button):not(.button-nav):not(.button-rounded) {
+    @apply underline decoration-1 underline-offset-2;
+}
+
+a:not(.button):not(.button-nav):not(.button-rounded):hover {
+    @apply decoration-2;
+}
+
+/* Zone d'annonce ARIA pour contenu dynamique */
+[role="status"],
+[role="alert"],
+[aria-live] {
+    @apply sr-only;
 }

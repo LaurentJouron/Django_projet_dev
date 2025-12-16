@@ -1,7 +1,7 @@
-import uuid
-from django.conf import settings
 from django.db import models
+from django.conf import settings
 from django.urls import reverse
+import uuid
 
 
 class Post(models.Model):
@@ -15,7 +15,7 @@ class Post(models.Model):
     )
     image = models.ImageField(upload_to="posts/")
     body = models.CharField(max_length=80, null=True, blank=True)
-    tags = models.CharField(max_length=80, null=True, blank=True)
+    tags = models.ManyToManyField("Tag", related_name="posts", blank=True)
     likes = models.ManyToManyField(
         settings.AUTH_USER_MODEL,
         related_name="likedposts",
@@ -45,6 +45,17 @@ class Post(models.Model):
 
     def get_absolute_url(self):
         return reverse("post_page", kwargs={"pk": self.uuid})
+
+
+class Tag(models.Model):
+    name = models.CharField(max_length=25, unique=True)
+    count = models.IntegerField(default=0)
+
+    class Meta:
+        ordering = ["-count", "name"]
+
+    def __str__(self):
+        return f"#{self.name}"
 
 
 class LikedPost(models.Model):

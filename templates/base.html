@@ -58,6 +58,12 @@
       class="dark:bg-black dark:text-white dark:fill-white"
       hx-headers='{"X-CSRFToken": "{{ csrf_token }}"}'>
 
+    <!-- Lien d'évitement pour navigation clavier -->
+    <a href="#main-content" class="skip-link">Aller au contenu principal</a>
+
+    <!-- Région ARIA pour annonces dynamiques (HTMX/Alpine) -->
+    <div role="status" aria-live="polite" aria-atomic="true" id="aria-announcer"></div>
+
     {% include "./includes/modal.html" %}
 
     {% block layout %}{% endblock layout %}

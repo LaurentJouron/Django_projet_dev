@@ -47,6 +47,7 @@ LOCAL_APPS = [
     "apps.users.apps.UsersConfig",
     "apps.network.apps.NetworkConfig",
     "apps.search.apps.SearchConfig",
+    "apps.visits.apps.VisitsConfig",
 ]
 
 # https://docs.djangoproject.com/en/dev/ref/settings/#installed-apps
@@ -67,6 +68,7 @@ MIDDLEWARE = [
     "allauth.account.middleware.AccountMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
     "django_htmx.middleware.HtmxMiddleware",
+    "apps.visits.middleware.VisitMiddleware",
 ]
 
 ROOT_URLCONF = "config.urls"
@@ -97,6 +99,17 @@ DATABASES = {
     "default": {
         "ENGINE": "django.db.backends.sqlite3",
         "NAME": BASE_DIR / "db.sqlite3",
+    }
+}
+# ==========================
+# Cache Configuration
+# ==========================
+# https://docs.djangoproject.com/en/dev/ref/settings/#caches
+
+CACHES = {
+    "default": {
+        "BACKEND": "django.core.cache.backends.locmem.LocMemCache",
+        "LOCATION": "unique-snowflake",
     }
 }
 

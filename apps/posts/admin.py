@@ -6,6 +6,7 @@ from .models import (
     Comment,
     LikedComment,
     Repost,
+    Tag,
 )
 
 # ==========================
@@ -36,14 +37,14 @@ class PostAdmin(admin.ModelAdmin):
         "uuid",
         "author",
         "short_body",
-        "tags",
+        "display_tags",
         "created_at",
         "like_count",
         "bookmark_count",
         "comment_count",
     )
     list_filter = ("author", "tags", "created_at")
-    search_fields = ("author__username", "body", "tags")
+    search_fields = ("author__username", "body", "tags__name")
     ordering = ("-created_at",)
     readonly_fields = ("uuid", "created_at")
     inlines = [CommentInline]
@@ -55,6 +56,14 @@ class PostAdmin(admin.ModelAdmin):
             if obj.body and len(obj.body) > 50
             else obj.body
         )
+
+    @admin.display(description="Tags")
+    def display_tags(self, obj):
+        """Display tags as comma-separated list"""
+        tags = obj.tags.all()
+        if tags:
+            return ", ".join([f"#{tag.name}" for tag in tags[:5]])
+        return "-"
 
     @admin.display(description="Likes")
     def like_count(self, obj):
@@ -72,7 +81,7 @@ class PostAdmin(admin.ModelAdmin):
         qs = super().get_queryset(request)
         # Optimization of queries to reduce SQL hits
         return qs.select_related("author").prefetch_related(
-            "likes", "bookmarks", "comments"
+            "tags", "likes", "bookmarks", "comments"
         )
 
 
@@ -169,3 +178,8 @@ class LikedCommentAdmin(admin.ModelAdmin):
     def get_queryset(self, request):
         qs = super().get_queryset(request)
         return qs.select_related("user", "comment")
+
+
+@admin.register(Tag)
+class TagAdmin(admin.ModelAdmin):
+    list_display = ("name", "count")

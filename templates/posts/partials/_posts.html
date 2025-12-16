@@ -23,10 +23,10 @@
                         <a href="{% url 'users:profile' post.author.username %}" class="hover:underline pointer-events-auto">{{ post.author }}</a>
                     {% endif %}
 
-                    {% if post.tags %}
+                    {% if post.tags.exists %}
                         <div class="mt-1">
-                            {% for tag in post.tags.split %}
-                                <a href="" class="hover:underline pointer-events-auto mr-2">{{ tag }}</a>
+                            {% for tag in post.tags.all %}
+                                <a href="{% url 'search:search' %}?q={{ tag.name }}" class="hover:underline pointer-events-auto mr-2">{{ tag }}</a>
                             {% endfor %}
                         </div>
                     {% endif %}

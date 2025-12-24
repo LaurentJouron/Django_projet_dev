@@ -89,6 +89,23 @@
             {% include "search/search.html" %}
         </div>
 
+        <!-- Section Activité -->
+        <div x-show="showActivity" class="relative px-2 py-5 h-screen flex flex-col">
+            <button @click="showDrawer = false; resetAll()" 
+                    class="absolute right-4 top-6 size-7 bg-neutral-100 dark:bg-neutral-800 hover:bg-neutral-200 dark:hover:bg-neutral-700 rounded-full flex items-center justify-center cursor-pointer"
+                    aria-label="Fermer la recherche">
+                <div class="size-4" aria-hidden="true">
+                    <svg viewBox="0 0 48 48">
+                        <path d="M38.7 12.12a1 1 0 0 0 0-1.41l-1.4-1.42a1 1 0 0 0-1.42 0L24 21.17 12.12 9.3a1 1 0 0 0-1.41 0l-1.42 1.42a1 1 0 0 0 0 1.41L21.17 24 9.3 35.88a1 1 0 0 0 0 1.41l1.42 1.42a1 1 0 0 0 1.41 0L24 26.83 35.88 38.7a1 1 0 0 0 1.41 0l1.42-1.42a1 1 0 0 0 0-1.41L26.83 24 38.7 12.12Z"></path>
+                    </svg>
+                </div>
+            </button>
+            <h2 class="pl-3 mb-7">
+                Notifications
+            </h2>
+            <div id="notification-content" class="flex-1 overflow-y-auto overscroll-contain hide-scrollbar"></div>
+        </div>
+
         <!-- Section "Plus" -->
         <div x-show="showMore" class="relative px-2 py-5">
             <button @click="showDrawer = false; resetAll()" 
@@ -197,10 +214,12 @@
             showDrawer: false,
             searchQuery: '',
             showSearch: false,
+            showActivity: false,
             showMore: false,
             showColorModes: false,
             resetAll() {
                 this.showSearch = false;
+                this.showActivity = false;
                 this.showMore = false;
                 this.showColorModes = false;
             }

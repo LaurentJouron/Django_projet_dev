@@ -69,6 +69,10 @@ class LikedPost(models.Model):
         ordering = ["-created_at"]
         unique_together = ("user", "post")
 
+    @property
+    def type(self):
+        return "likepost"
+
 
 class BookmarkedPost(models.Model):
     post = models.ForeignKey(Post, on_delete=models.CASCADE)
@@ -92,6 +96,10 @@ class Repost(models.Model):
     class Meta:
         ordering = ["-created_at"]
         unique_together = ("user", "post")
+
+    @property
+    def type(self):
+        return "repost"
 
 
 class Comment(models.Model):
@@ -129,6 +137,10 @@ class Comment(models.Model):
     def __str__(self):
         return f"Comment by {self.author} | {self.created_at.strftime('%b %d, %Y')} | {self.uuid}"
 
+    @property
+    def type(self):
+        return "comment"
+
 
 class LikedComment(models.Model):
     comment = models.ForeignKey(Comment, on_delete=models.CASCADE)
@@ -140,3 +152,7 @@ class LikedComment(models.Model):
     class Meta:
         ordering = ["-created_at"]
         unique_together = ("user", "comment")
+
+    @property
+    def type(self):
+        return "likedcomment"

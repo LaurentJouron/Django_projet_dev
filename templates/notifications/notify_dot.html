@@ -1,0 +1,14 @@
+<div x-show="!showActivity">
+    {% if has_new_notifications %}
+        <div id="notify-dot" class="absolute top-1 left-6">
+            <div class="size-3 rounded-full bg-[#366BF5]"></div>
+        </div>
+    {% else %}
+        <div id="notify-dot"
+            class="absolute top-1 left-6"
+            hx-get="{% url 'notifications:new_notifications' %}"
+            hx-trigger="every 10s"
+            hx-swap="outerHTML">
+        </div>
+    {% endif %}
+</div>

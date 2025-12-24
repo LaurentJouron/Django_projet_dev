@@ -1,28 +1,32 @@
 {% if not post.is_repost %}
     {% if post.author %}
-    <div id="author" class="relative cursor-pointer flex justify-center mb-4">
-        <a href="{% url 'users:profile' post.author.username %}" class="rounded-full size-13 bg-neutral-100 overflow-hidden">
-            <img src="{{ post.author.avatar }}" alt="" class="w-full h-full object-center object-cover">
-        </a>
+        <div id="author" class="relative cursor-pointer flex justify-center mb-4">
+            <a href="{% url 'users:profile' post.author.username %}" class="rounded-full size-13 bg-neutral-100 overflow-hidden">
+                <img src="{{ post.author.avatar }}" alt="" class="w-full h-full object-center object-cover">
+            </a>
 
-        {% if post.author != user %}
-            {% with post.author as this_user %}
-            {% include "../../network/partials/_follow_round.html" %}
-            {% endwith %}
-        {% endif %}
-    </div>
+            {% if post.author != user %}
+                <div class="absolute top-10">
+                    {% with post.author as this_user %}
+                        {% include "../../network/partials/_follow_round.html" %}
+                    {% endwith %}
+                </div>
+            {% endif %}
+        </div>
     {% endif %}
 {% else %}
     {% if post.repost_author %}
-    <div id="repost_author" class="relative cursor-pointer flex justify-center mb-4">
-        <a href="{% url 'users:profile' post.repost_author.username %}" class="rounded-full size-13 bg-neutral-100 overflow-hidden">
-            <img src="{{ post.repost_author.avatar }}" alt="" class="w-full h-full object-center object-cover">
-        </a>
-        {% if post.repost_author != user %}
-            {% with post.repost_author  as this_user %}
-            {% include "../../network/partials/_follow_round.html" %}
-            {% endwith %}
-        {% endif %}
-    </div>
+        <div id="repost_author" class="relative cursor-pointer flex justify-center mb-4">
+            <a href="{% url 'users:profile' post.repost_author.username %}" class="rounded-full size-13 bg-neutral-100 overflow-hidden">
+                <img src="{{ post.repost_author.avatar }}" alt="" class="w-full h-full object-center object-cover">
+            </a>
+            {% if post.repost_author != user %}
+                <div class="absolute top-10">
+                    {% with post.repost_author  as this_user %}
+                        {% include "../../network/partials/_follow_round.html" %}
+                    {% endwith %}
+                </div>
+            {% endif %}
+        </div>
     {% endif %}
 {% endif %}

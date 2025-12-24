@@ -48,6 +48,7 @@ LOCAL_APPS = [
     "apps.network.apps.NetworkConfig",
     "apps.search.apps.SearchConfig",
     "apps.visits.apps.VisitsConfig",
+    "apps.notifications.apps.NotificationsConfig",
 ]
 
 # https://docs.djangoproject.com/en/dev/ref/settings/#installed-apps

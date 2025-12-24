@@ -10,6 +10,10 @@ urlpatterns = [
     path("network/", include("apps.network.urls", namespace="network")),
     path("search/", include("apps.search.urls", namespace="search")),
     path(
+        "notifications/",
+        include("apps.notifications.urls", namespace="notifications"),
+    ),
+    path(
         "accounts/password/change/",
         PasswordChangeView.as_view(success_url=reverse_lazy("users:settings")),
         name="account_change_password",

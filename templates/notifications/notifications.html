@@ -1,0 +1,142 @@
+{% if welcome_message %}
+    <div class="font-medium text-sm p-4">
+        {{ welcome_message }}
+    </div>
+{% endif %}
+
+{% if notifications %}
+    {% for notif in notifications %}
+
+        {% if notif.type == "follow" %}
+            <a href="{% url 'users:profile' notif.follower.username %}"
+                class="flex items-center p-3 rounded-xl hover:bg-neutral-100 dark:hover:bg-neutral-900"
+                style="text-decoration: none;">
+                <img src="{{ notif.follower.avatar }}" alt="avatar de {{ notif.follower.username }}"
+                    class="size-8 rounded-full object-cover"
+                >
+                <div class="pl-2 min-w-0">
+                    <p class="font-medium text-sm">{{ notif.follower.username }}</p>
+                    <p class="font-normal text-sm truncate">Commence à te suivre</p>
+                    <p class="text-xs text-neutral-500">Il y a {{ notif.created_at|timesince }}</p>
+                </div>
+                <div class="pl-2 ml-auto shrink-0">
+                    {% with notif.follower as this_user %}
+                    {% include "network/partials/_follow_round.html" %}
+                    {% endwith %}
+                </div>
+            </a>
+        {% endif %}
+
+        {% if notif.type == "likepost" %}
+            <a href="{% url 'users:profile' notif.user.username %}"
+                class="flex items-center p-3 rounded-xl hover:bg-neutral-100 dark:hover:bg-neutral-900"
+                style="text-decoration: none;">
+                <img src="{{ notif.user.avatar }}" alt="avatar de {{ notif.user.username }}"
+                    class="size-8 rounded-full object-cover"
+                >
+                <div class="pl-2 min-w-0">
+                    <p class="font-medium text-sm">{{ notif.user.username }}</p>
+                    <p class="font-normal text-sm truncate">
+                        <span class="inline-block size-4 fill-[#366BF5] pt-0.5">
+                            <svg viewBox="0 0 24 24">
+                                <path d="M7.5 2.25C10.5 2.25 12 4.25 12 4.25C12 4.25 13.5 2.25 16.5 2.25C20 2.25 22.5 4.99999 22.5 8.5C22.5 12.5 19.2311 16.0657 16.25 18.75C14.4095 20.4072 13 21.5 12 21.5C11 21.5 9.55051 20.3989 7.75 18.75C4.81949 16.0662 1.5 12.5 1.5 8.5C1.5 4.99999 4 2.25 7.5 2.25Z"></path>
+                            </svg>
+                        </span>
+                        Aime votre post
+                    </p>
+                    <p class="text-xs text-neutral-500">Il y a {{ notif.created_at|timesince }}</p>
+                </div>
+                <div class="pl-2 ml-auto shrink-0">
+                    <img class="size-12 object-cover rounded-lg" src="{{ notif.post.image.url }}" alt="">
+                </div>
+            </a>
+        {% endif %}
+
+        {% if notif.type == "likedcomment" %}
+            <a href="{% url 'users:profile' notif.user.username %}"
+                class="flex items-center p-3 rounded-xl hover:bg-neutral-100 dark:hover:bg-neutral-900"
+                style="text-decoration: none;">
+                <img src="{{ notif.user.avatar }}" alt="avatar de {{ notif.user.username }}"
+                    class="size-8 rounded-full object-cover"
+                >
+                <div class="pl-2 min-w-0">
+                    <p class="font-medium text-sm">{{ notif.user.username }}</p>
+                    <p class="font-normal text-sm truncate">
+                        <span class="inline-block size-4 fill-[#366BF5] pt-0.5">
+                            <svg viewBox="0 0 24 24">
+                                <path d="M7.5 2.25C10.5 2.25 12 4.25 12 4.25C12 4.25 13.5 2.25 16.5 2.25C20 2.25 22.5 4.99999 22.5 8.5C22.5 12.5 19.2311 16.0657 16.25 18.75C14.4095 20.4072 13 21.5 12 21.5C11 21.5 9.55051 20.3989 7.75 18.75C4.81949 16.0662 1.5 12.5 1.5 8.5C1.5 4.99999 4 2.25 7.5 2.25Z"></path>
+                            </svg>
+                        </span>
+                           Aime {% if notif.comment.parent_comment %} ta réponse {% else %} ton commentaire{% endif %}:"{{ notif.comment.body }}"
+                    </p>
+                    <p class="text-xs text-neutral-500">Il y a {{ notif.created_at|timesince }}</p>
+                </div>
+                <div class="pl-2 ml-auto shrink-0">
+                    <img class="size-12 object-cover rounded-lg" src="{{ notif.comment.post.image.url }}" alt="">
+                </div>
+            </a>
+        {% endif %}
+
+
+        {% if notif.type == "comment" %}
+            <a href="{% url 'post:post_page' notif.post.uuid %}"
+                class="flex items-center p-3 rounded-xl hover:bg-neutral-100 dark:hover:bg-neutral-900"
+                style="text-decoration: none;">
+                <img src="{{ notif.author.avatar }}" alt="avatar de {{ notif.author.username }}"
+                    class="size-8 rounded-full object-cover"
+                >
+                <div class="pl-2 min-w-0">
+                    <p class="font-medium text-sm">{{ notif.author.username }}</p>
+                    <p class="font-normal text-sm truncate">
+                          {% if notif.parent_comment %} a répondu {% else %} a commenté {% endif %}:"{{ notif.body }}"
+                    </p>
+                    {% if notif.parent_comment %}
+                        <p class="font-normal text-sm truncate">
+                            en réponse à : "{{ notif.parent_comment.body }}"
+                        </p>
+                    {% endif %}
+
+                    <p class="text-xs text-neutral-500">Il y a {{ notif.created_at|timesince }}</p>
+                </div>
+                <div class="pl-2 ml-auto shrink-0">
+                    <img class="size-12 object-cover rounded-lg" src="{{ notif.post.image.url }}" alt="">
+                </div>
+            </a>
+        {% endif %}
+
+
+        {% if notif.type == "repost" %}
+            <a href="{% url 'users:profile' notif.user.username %}"
+                class="flex items-center p-3 rounded-xl hover:bg-neutral-100 dark:hover:bg-neutral-900"
+                style="text-decoration: none;">
+                <img src="{{ notif.user.avatar }}" alt="avatar de {{ notif.user.username }}"
+                    class="size-8 rounded-full object-cover"
+                >
+                <div class="pl-2 min-w-0">
+                    <p class="font-medium text-sm">{{ notif.user.username }}</p>
+                    <p class="font-normal text-sm truncate">
+                        <span class="inline-block size-4 fill-[#5037F8] pt-0.5">
+                            <svg viewBox="0 0 48 48" >
+                                <path d="M37.7 15v19.7l3.48-3.7a.7.7 0 0 1 .99-.03l1.46 1.37c.28.26.3.7.03.99l-6.26 6.66a2.3 2.3 0 0 1-3.34.01l-6.36-6.66a.7.7 0 0 1 .02-.99l1.45-1.38a.7.7 0 0 1 .99.02l4.14 4.34V15a4.3 4.3 0 0 0-4.3-4.3h-3.5a.7.7 0 0 1-.7-.7V8c0-.39.31-.7.7-.7H30a7.7 7.7 0 0 1 7.7 7.7ZM17.84 17.34 13.7 13v20a4.3 4.3 0 0 0 4.3 4.3h3.5c.39 0 .7.31.7.7v2a.7.7 0 0 1-.7.7H18a7.7 7.7 0 0 1-7.7-7.7V13.63l-3.48 3.7a.7.7 0 0 1-.99.03L4.37 16a.7.7 0 0 1-.03-.98l6.26-6.67a2.3 2.3 0 0 1 3.34-.01l6.36 6.66a.7.7 0 0 1-.02.99l-1.45 1.38a.7.7 0 0 1-.99-.02Z"></path>
+                            </svg>
+                        </span>
+                        Partage ton post
+                    </p>
+                    <p class="text-xs text-neutral-500">Il y a {{ notif.created_at|timesince }}</p>
+                </div>
+                <div class="pl-2 ml-auto shrink-0">
+                    <img class="size-12 object-cover rounded-lg" src="{{ notif.post.image.url }}" alt="">
+                </div>
+            </a>
+        {% endif %}
+
+    {% endfor %}
+{% endif %}
+
+<div id="notify-dot"
+    hx-swap-oop="outerHTML"
+    class="absolute top-1 left-6"
+    hx-get="{% url 'notifications:new_notifications' %}"
+    hx-trigger="every 10s"
+    hx-swap="outerHTML">
+</div>

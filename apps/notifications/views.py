@@ -8,6 +8,7 @@ from django.utils import timezone
 
 from apps.network.models import Follow
 from apps.posts.models import LikedPost, LikedComment, Comment, Repost
+from apps.messages.models import Message, ConvUser
 from .models import NotificationTracker
 
 
@@ -139,8 +140,13 @@ class NewNotificationsView(LoginRequiredMixin, View):
                 .exists()
             )
 
+        has_new_messages = ConvUser.objects.filter(
+            user=request.user, unread_count__gt=0
+        ).exists()
+
         context = {
             "has_new_notifications": has_new_notifications,
+            "has_new_messages": has_new_messages,
         }
 
         return render(request, self.template_name, context)

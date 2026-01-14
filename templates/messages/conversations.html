@@ -1,0 +1,52 @@
+<div class="space-y-2">
+    {% for conversation in conversations %}
+        <button
+            class="w-full flex items-center gap-3 rounded-xl hover:bg-neutral-100 dark:hover:bg-neutral-900 p-2"
+            hx-get="{% url 'messages:chat' conversation.receiver.id %}"
+            hx-target="#main-content"
+            hx-swap="innerHTML transition:true"
+            hx-push-url="{% url 'messages:messages' %}"
+        >
+            <img
+                src="{{ conversation.receiver.avatar }}"
+                class="size-12 rounded-full object-cover"
+                alt=""
+            >
+
+            <div class="flex-1 text-left min-w-0">
+                <p class="font-semibold">
+                    {{ conversation.receiver.username }}
+                    {% if conversation.is_self %}(Toi){% endif %}
+                </p>
+
+                {% with last_message=conversation.conversation.messages.last %}
+                    {% if last_message %}
+                        <p class="text-sm text-gray-500 truncate">
+                            {{ last_message.body }}
+                        </p>
+                    {% else %}
+                        <p class="text-sm text-gray-400 italic">
+                            Aucun message
+                        </p>
+                    {% endif %}
+                {% endwith %}
+
+                <p class="text-xs text-gray-500">
+                    {% if conversation.is_self %}
+                        Votre message
+                    {% else %}
+                        il y a {{ conversation.conversation.updated_at|timesince }}
+                    {% endif %}
+                </p>
+            </div>
+            {% if conversation.my_convuser.unread_count > 0 and not conversation.is_self %}
+
+                <span id="unread-badge-{{ conversation.conversation.id }}" class="bg-[#366BF5] text-white text-xs px-2 py-1 min-w-6 rounded-full">
+                    {{ conversation.my_convuser.unread_count }}
+                </span>
+
+            {% endif %}
+
+        </button>
+    {% endfor %}
+</div>

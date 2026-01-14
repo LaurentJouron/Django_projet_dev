@@ -49,6 +49,8 @@ LOCAL_APPS = [
     "apps.search.apps.SearchConfig",
     "apps.visits.apps.VisitsConfig",
     "apps.notifications.apps.NotificationsConfig",
+    "apps.messages.apps.MessagesConfig",
+    "apps.channels.apps.ChannelsConfig",
 ]
 
 # https://docs.djangoproject.com/en/dev/ref/settings/#installed-apps
@@ -283,4 +285,10 @@ ACCOUNT_USERNAME_BLACKLIST = [
     "root",
     "webmaster",
     "theboss",
+]
+
+ACCOUNT_SIGNUP_FIELDS = [
+    "email*",
+    "password1*",
+    "password2*",
 ]

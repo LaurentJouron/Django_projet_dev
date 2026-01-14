@@ -41,7 +41,11 @@
                         {% include "../../network/partials/_follow_button.html" %}
                         {% endwith %}
 
-                        <button class="bg-neutral-200/70 dark:bg-neutral-800 hover:bg-neutral-200 dark:hover:bg-neutral-700 rounded-md px-7 py-2">
+                        <button hx-get="{% url 'messages:chat' profile_user.id %}"
+                                hx-target="#main-content"
+                                hx-swap="innerHTML transition:true"
+                                hx-push-url="{% url 'messages:messages' %}"
+                            class="bg-neutral-200/70 dark:bg-neutral-800 hover:bg-neutral-200 dark:hover:bg-neutral-700 rounded-md px-7 py-2">
                             Message
                         </button>
                     {% endif %}

@@ -14,6 +14,8 @@ DEBUG = env.bool("DJANGO_DEBUG", False)
 ALLOWED_HOSTS = []
 
 DJANGO_APPS = [
+    "daphne",
+    "channels",
     # Django apps
     "django.contrib.admin",
     "django.contrib.auth",
@@ -50,7 +52,6 @@ LOCAL_APPS = [
     "apps.visits.apps.VisitsConfig",
     "apps.notifications.apps.NotificationsConfig",
     "apps.messages.apps.MessagesConfig",
-    "apps.channels.apps.ChannelsConfig",
 ]
 
 # https://docs.djangoproject.com/en/dev/ref/settings/#installed-apps
@@ -93,7 +94,14 @@ TEMPLATES = [
     },
 ]
 
-WSGI_APPLICATION = "config.wsgi.application"
+
+ASGI_APPLICATION = "config.asgi.application"
+
+CHANNEL_LAYERS = {
+    "default": {
+        "BACKEND": "channels.layers.InMemoryChannelLayer",
+    },
+}
 
 # Database
 # https://docs.djangoproject.com/en/5.1/ref/settings/#databases

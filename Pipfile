@@ -27,6 +27,7 @@ django-widget-tweaks = "*"
 django-allauth = "*"
 django-jazzmin = "*"
 django-resized = "*"
+channels = {extras = ["daphne"], version = "*"}
 
 [dev-packages]
 

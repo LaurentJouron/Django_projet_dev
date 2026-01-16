@@ -35,9 +35,11 @@ def create_message(sender, receiver, body, image):
                 ConvUser(conversation=conversation, user=receiver),
             ]
         )
+        is_new_conversation = True
     else:
         conversation.updated_at = timezone.now()
         conversation.save(update_fields=["updated_at"])
+        is_new_conversation = False
 
     message = Message.objects.create(
         conversation=conversation,
@@ -46,10 +48,13 @@ def create_message(sender, receiver, body, image):
         image=image,
     )
 
-    if sender != receiver:
-        ConvUser.objects.filter(
-            conversation=conversation, user=receiver
-        ).update(unread_count=F("unread_count") + 1)
+    convuser_receiver = ConvUser.objects.get(
+        conversation=conversation, user=receiver
+    )
+    if sender != receiver and not convuser_receiver.is_live:
+        ConvUser.objects.filter(id=convuser_receiver.id).update(
+            unread_count=F("unread_count") + 1
+        )
 
     ConvUser.objects.filter(
         conversation=conversation,
@@ -59,4 +64,4 @@ def create_message(sender, receiver, body, image):
         unread_count=0,
     )
 
-    return message
+    return message, is_new_conversation

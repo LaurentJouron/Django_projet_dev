@@ -1,9 +1,12 @@
+import http
 from django.views import View
-from django.shortcuts import render, get_object_or_404
+from django.shortcuts import render, get_object_or_404, redirect
 from django.contrib.auth import get_user_model
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.http import HttpResponse
 from django.utils import timezone
+from channels.layers import get_channel_layer
+from asgiref.sync import async_to_sync
 from .models import Conversation, Message, ConvUser
 from .utils import get_or_create_conversation, create_message
 
@@ -14,6 +17,9 @@ class MessagesView(LoginRequiredMixin, View):
     template_name = "messages/messages_page.html"
 
     def get(self, request, *args, **kwargs):
+        ConvUser.objects.filter(user=request.user, is_live=True).update(
+            is_live=False
+        )
         context = {
             "page": "Messages",
         }
@@ -102,17 +108,25 @@ class SendMessageView(LoginRequiredMixin, View):
         if not body and not image:
             return HttpResponse(status=204)
 
-        message = create_message(
+        message, is_new_conversation = create_message(
             sender=request.user,
             receiver=receiver,
             body=body,
             image=image,
         )
+        if is_new_conversation:
+            return redirect("chat", receiver_id=receiver.id)
 
-        context = {
-            "message": message,
-        }
-        return render(request, self.template_name, context=context)
+        channel_layer = get_channel_layer()
+        group_name = f"chat_{message.conversation.id}"
+        async_to_sync(channel_layer.group_send)(
+            group_name,
+            {
+                "type": "broadcast_message",
+                "message_id": message.id,
+            },
+        )
+        return HttpResponse("")
 
 
 class DeleteMessageView(LoginRequiredMixin, View):

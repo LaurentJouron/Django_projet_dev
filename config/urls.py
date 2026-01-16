@@ -10,7 +10,6 @@ urlpatterns = [
     path("network/", include("apps.network.urls", namespace="network")),
     path("search/", include("apps.search.urls", namespace="search")),
     path("messages/", include("apps.messages.urls", namespace="messages")),
-    path("channels/", include("apps.channels.urls", namespace="channels")),
     path(
         "notifications/",
         include("apps.notifications.urls", namespace="notifications"),

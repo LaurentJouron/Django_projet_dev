@@ -99,11 +99,11 @@
             </button>
 
             <div class="relative">
-                <div id="notification-poller"
+                {% comment %} <div id="notification-poller"
                     hx-get="{% url 'notifications:new_notifications' %}"
                     hx-trigger="load, every 10s"
                     hx-swap="none">
-                </div>
+                </div> {% endcomment %}
                 <div id="notify-dot" class="absolute top-1 left-6 pointer-events-none z-10"></div>
                 <button id="activity"
                         @click="showDrawer = !showDrawer; showActivity = true"

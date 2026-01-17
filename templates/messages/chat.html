@@ -1,4 +1,4 @@
-<div class="ml-18 lg:ml-110 lg:mr-12 p-3 h-full" hx-ext="ws" ws-connect="/ws/chat/{{ chat.id }}/">
+<div id="chat-page" class="ml-18 lg:ml-110 lg:mr-12 p-3 h-full" {% if chat %}hx-ext="ws" ws-connect="/ws/chat/{{ chat.id }}/"{% endif %}>
     <div class="h-full flex flex-col">
         <div class="pb-3 border-b border-neutral-300 dark:border-neutral-800 mb-5">
 
@@ -19,8 +19,13 @@
 
         <form action="" class="flex items-center gap-3 mt-6 mb-2"
             hx-post="{% url 'messages:send_message' receiver.id %}"
-            hx-target="#messages-list"
-            hx-swap="beforeend"
+            {% if chat %}
+                hx-target="#messages-list"
+                hx-swap="none"
+            {% else %}
+                hx-target="#chat-page"
+                hx-swap="outerHTML"
+            {% endif %}
             hx-trigger="submit"
             hx-on::after-request="this.reset()"
             enctype="multipart/form-data">

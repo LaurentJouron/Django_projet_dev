@@ -115,7 +115,7 @@ class SendMessageView(LoginRequiredMixin, View):
             image=image,
         )
         if is_new_conversation:
-            return redirect("chat", receiver_id=receiver.id)
+            return redirect("messages:chat", receiver_id=receiver.id)
 
         channel_layer = get_channel_layer()
         group_name = f"chat_{message.conversation.id}"
@@ -126,7 +126,7 @@ class SendMessageView(LoginRequiredMixin, View):
                 "message_id": message.id,
             },
         )
-        return HttpResponse("")
+        return HttpResponse(status=204)
 
 
 class DeleteMessageView(LoginRequiredMixin, View):

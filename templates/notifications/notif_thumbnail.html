@@ -1,0 +1,5 @@
+{% if post.video %}
+    <video class="size-12 object-cover rounded-lg bg-black" src="{{ post.video.url }}" autoplay muted loop playsinline></video>
+{% elif post.image %}
+    <img class="size-12 object-cover rounded-lg" src="{{ post.image.url }}" alt="">
+{% endif %}

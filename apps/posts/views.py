@@ -523,6 +523,14 @@ class UploadView(
         """
         post = form.save(commit=False)
         post.author = self.request.user
+
+        uploaded_file = form.cleaned_data.get("file")
+        if uploaded_file:
+            if uploaded_file.content_type.startswith("image/"):
+                post.image = uploaded_file
+            elif uploaded_file.content_type.startswith("video/"):
+                post.video = uploaded_file
+
         post.save()
         return post
 

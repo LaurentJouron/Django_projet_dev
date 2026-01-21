@@ -46,3 +46,151 @@ function scrollMessagesToBottom() {
 
   if (loaded === images.length) scroll();
 }
+
+
+
+
+
+
+---------------------
+VIDEO
+---------------------
+
+
+function uploadComponent() {
+    return {
+        isDragging: false,
+        fileUrl: null,
+        fileType: null,
+        caption: '',
+        hashtag: '',
+
+        fileDropped(event) {
+            event.preventDefault();
+            this.isDragging = false;
+            const file = event.dataTransfer.files[0];
+            if (file && (file.type.startsWith('image/') || file.type.startsWith('video/'))) {
+                this.previewFile(file);
+            }
+        },
+
+        fileSelected(event) {
+            const file = event.target.files[0];
+            if (file && (file.type.startsWith('image/') || file.type.startsWith('video/'))) {
+                this.previewFile(file);
+            }
+        },
+
+        previewFile(file) {
+            this.fileUrl = URL.createObjectURL(file);
+            this.fileType = file.type.startsWith('image/') ? 'image' : 'video';
+            const dataTransfer = new DataTransfer();
+            dataTransfer.items.add(file);
+            this.$refs.inputFileSelected.files = dataTransfer.files;
+        },
+
+        discardUpload() {
+            this.fileUrl = null;
+            this.fileType = null;
+            this.caption = '';
+            this.hashtag = '';
+            this.$refs.inputFileSelected.value = '';
+        }
+    }
+}
+  
+
+// VIDEO PLAYER COMPONENT
+
+
+window.userWantsSound = false;
+window.currentlyPlayingVideo = null;
+
+function videoPlayer(src) {
+    return {
+        src,
+        playing: false,
+        muted: !window.userWantsSound,
+        userPaused: false,
+        ready: false,
+        showTapIcon: false,
+
+        init() {
+            const video = this.$refs.videoPlayer;
+
+            this.muted = !window.userWantsSound;
+            video.muted = this.muted;
+
+            this.observeVideo(video);
+            this.ready = true;
+        },
+
+        observeVideo(video) {
+            const observer = new IntersectionObserver(([entry]) => {
+                if (window.pauseAllVideosFlag) {
+                    // If modal is open, force pause and mute
+                    video.pause();
+                    video.muted = true;
+                    return;
+                }
+
+                if (entry.isIntersecting && !this.userPaused) {
+                    if (window.currentlyPlayingVideo && window.currentlyPlayingVideo !== video) {
+                        window.currentlyPlayingVideo.pause();
+                    }
+                    window.currentlyPlayingVideo = video;
+                    video.play().catch(() => {});
+                } else if (!entry.isIntersecting) {
+                    if (window.currentlyPlayingVideo === video) {
+                        window.currentlyPlayingVideo = null;
+                    }
+                    video.pause();
+                }
+            }, { threshold: 0.6 });
+            observer.observe(video);
+        },
+
+        togglePlay() {
+            const video = this.$refs.videoPlayer;
+            if (video.paused) {
+                this.userPaused = false;
+                this.playing = true;
+                this.$nextTick(() => this.showTapIcon = true);
+                if (window.currentlyPlayingVideo && window.currentlyPlayingVideo !== video) {
+                    window.currentlyPlayingVideo.pause();
+                }
+                window.currentlyPlayingVideo = video;
+                video.play();
+            } else {
+                this.userPaused = true;
+                this.playing = false;
+                this.$nextTick(() => this.showTapIcon = true);
+                video.pause();
+                if (window.currentlyPlayingVideo === video) window.currentlyPlayingVideo = null;
+            };
+
+            this.$nextTick(() => {
+                this.showTapIcon = true;
+            });
+
+            setTimeout(() => {
+                this.showTapIcon = false;
+            }, 700); 
+        },
+
+        toggleMute() {
+            const video = this.$refs.videoPlayer;
+            this.muted = !this.muted;
+            video.muted = this.muted;
+            window.userWantsSound = !this.muted;
+        }
+    }
+}
+
+document.body.addEventListener('htmx:afterSwap', (e) => {
+    if (e.target.id !== 'modalpage-content') return;
+    document.querySelectorAll('video[x-ref="videoPlayer"]').forEach(video => {
+        video.muted = true;
+        video.load();
+    });
+});

@@ -47,7 +47,11 @@
                     <p class="text-xs text-neutral-500">Il y a {{ notif.created_at|timesince }}</p>
                 </div>
                 <div class="pl-2 ml-auto shrink-0">
-                    <img class="size-12 object-cover rounded-lg" src="{{ notif.post.image.url }}" alt="">
+
+                    {% with post=notif.post %}
+                    {% include "notifications/notif_thumbnail.html" %}
+                    {% endwith %}
+
                 </div>
             </a>
         {% endif %}
@@ -72,7 +76,9 @@
                     <p class="text-xs text-neutral-500">Il y a {{ notif.created_at|timesince }}</p>
                 </div>
                 <div class="pl-2 ml-auto shrink-0">
-                    <img class="size-12 object-cover rounded-lg" src="{{ notif.comment.post.image.url }}" alt="">
+                    {% with post=notif.comment.post %}
+                    {% include "notifications/notif_thumbnail.html" %}
+                    {% endwith %}
                 </div>
             </a>
         {% endif %}
@@ -99,7 +105,9 @@
                     <p class="text-xs text-neutral-500">Il y a {{ notif.created_at|timesince }}</p>
                 </div>
                 <div class="pl-2 ml-auto shrink-0">
-                    <img class="size-12 object-cover rounded-lg" src="{{ notif.post.image.url }}" alt="">
+                    {% with post=notif.post %}
+                    {% include "notifications/notif_thumbnail.html" %}
+                    {% endwith %}
                 </div>
             </a>
         {% endif %}
@@ -125,7 +133,9 @@
                     <p class="text-xs text-neutral-500">Il y a {{ notif.created_at|timesince }}</p>
                 </div>
                 <div class="pl-2 ml-auto shrink-0">
-                    <img class="size-12 object-cover rounded-lg" src="{{ notif.post.image.url }}" alt="">
+                    {% with post=notif.post %}
+                    {% include "notifications/notif_thumbnail.html" %}
+                    {% endwith %}
                 </div>
             </a>
         {% endif %}

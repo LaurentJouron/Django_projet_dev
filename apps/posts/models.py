@@ -13,7 +13,8 @@ class Post(models.Model):
         blank=True,
         related_name="posts",
     )
-    image = models.ImageField(upload_to="posts/")
+    image = models.ImageField(upload_to="posts/", null=True, blank=True)
+    video = models.FileField(upload_to="posts/video/", null=True, blank=True)
     body = models.CharField(max_length=80, null=True, blank=True)
     tags = models.ManyToManyField("Tag", related_name="posts", blank=True)
     likes = models.ManyToManyField(

@@ -5,13 +5,13 @@
 {% block meta_tags %}
 <meta property="og:title" content="Posté par {{ post.author.username }}">
 <meta property="og:description" content="Consultez ce post">
-<meta property="og:image" content="{{ request.scheme }}://{{request.get_host }}{{ post.image.url }}">
+<meta property="og:image" content="{{ request.scheme }}://{{request.get_host }}{% if post.image %}{{ post.image.url }}{% endif %}">
 <meta property="og:type" content="article">
 
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:title" content="Posté par {{ post.author.username }}">
 <meta name="twitter:description" content="Consultez ce post">
-<meta name="twitter:image" content="{{ request.scheme }}://{{ request.get_host }}{{ post.image.url }}">
+<meta name="twitter:image" content="{{ request.scheme }}://{{ request.get_host }}{% if post.image %}{{ post.image.url }}{% endif %}">
 {% endblock meta_tags %}
 
 {% block title %}postpage{% endblock title %}
